@@ -953,7 +953,6 @@ export const DashboardLayout = () => {
       { to: '/overview', label: 'ตารางเรียน', icon: 'subjects', accent: activeAccentTheme.accent },
       { to: '/subjects', label: 'วิชาเรียน', icon: 'subjects', accent: activeAccentTheme.accent },
       { to: '/document-summary', label: 'สรุปด้วย AI', icon: 'documentSummary', accent: activeAccentTheme.accent },
-      { to: '/goals', label: 'ภารกิจ', icon: 'goals', accent: activeAccentTheme.accent },
       { to: '/calendar', label: 'ปฏิทิน', icon: 'calendar', accent: activeAccentTheme.accent },
       { to: '/quizzes', label: 'แบบฝึกหัด', icon: 'quizzes', accent: activeAccentTheme.accent },
       { to: '/profile', label: 'โปรไฟล์', icon: 'profile', accent: activeAccentTheme.accent },
@@ -1792,120 +1791,128 @@ export const DashboardLayout = () => {
         </div>
       </div>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 lg:hidden">
-          <nav className="mobile-bottom-nav pointer-events-auto w-full">
-            <div
-              className="relative overflow-visible"
-              style={{
-                height: `calc(76px + env(safe-area-inset-bottom, 0px))`
-              }}
-            >
-              <div
-                className={`absolute inset-x-0 bottom-0 border-t ${
-                  theme === 'dark' ? 'border-white/10 bg-slate-950' : 'border-slate-200 bg-white'
-                }`}
-                style={{
-                  height: `calc(76px + env(safe-area-inset-bottom, 0px))`,
-                  paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-                  boxShadow:
-                    theme === 'dark'
-                      ? '0 -10px 28px rgba(2, 6, 23, 0.3)'
-                      : '0 -10px 28px rgba(15, 23, 42, 0.08)'
-                }}
-              />
-              <div
-                className="pointer-events-none absolute left-0 top-0 h-[56px] w-1/4 transition-transform duration-500 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)]"
-                style={{
-                  transform: `translateX(${Math.max(
-                    bottomNavItems.findIndex(item => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)),
-                    0
-                  ) * 100}%)`
-                }}
-              >
-                <div
-                  className="absolute left-1/2 top-0 h-[42px] w-[96px] -translate-x-1/2"
-                  style={{ color: theme === 'dark' ? '#020617' : '#f8fafc' }}
-                >
-                  <svg width="100%" height="100%" viewBox="0 0 96 42" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
-                    <path d="M0 0C20 0 24 36 48 36C72 36 76 0 96 0Z" />
-                  </svg>
-                </div>
-              </div>
+      <div
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-4 lg:hidden"
+        style={{ paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 14px)` }}
+      >
+          {(() => {
+            const itemCount = bottomNavItems.length;
+            const slotPct = 100 / itemCount;
+            const activeIndex = Math.max(
+              bottomNavItems.findIndex(
+                item => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
+              ),
+              0
+            );
+            const accent = activeAccentTheme.accent;
+            const accentRgb = activeAccentTheme.accentRgb;
+            // build colors straight from the user's accent (no gradient):
+            // the pill is a deep, darker tint of the accent; the raised circle is the full accent.
+            const toRgb = (hex: string) => {
+              const n = parseInt(hex.replace('#', ''), 16);
+              return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+            };
+            const toHex = (arr: number[]) =>
+              '#' + arr.map(c => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, '0')).join('');
+            const [ar, ag, ab] = toRgb(accent);
+            const pillColor = toHex([ar * 0.34, ag * 0.34, ab * 0.34]); // darker than the circle
+            const inactiveIcon = toHex([ar + (255 - ar) * 0.5, ag + (255 - ag) * 0.5, ab + (255 - ab) * 0.5]);
+            const notchColor = theme === 'dark' ? '#020617' : '#f8fafc';
+            const pillHeight = 64;
+            const wrapperHeight = 100;
+            const pillTop = wrapperHeight - pillHeight; // 36px headroom for the raised icon
 
-              <div
-                className="relative z-10 flex w-full"
-                style={{ height: `calc(76px + env(safe-area-inset-bottom, 0px))` }}
-              >
-                {bottomNavItems.map(item => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className="relative h-full w-1/4 outline-none"
-                    onClick={() => {
-                      if (item.to === '/ai-assistant' && typeof window !== 'undefined') {
-                        window.dispatchEvent(new Event('smartroom:home-menu-pressed'));
-                      }
+            return (
+              <nav className="mobile-bottom-nav pointer-events-auto mx-auto w-full max-w-[460px]">
+                <div className="relative overflow-visible" style={{ height: `${wrapperHeight}px` }}>
+                  {/* floating pill body */}
+                  <div
+                    className="absolute inset-x-0 bottom-0"
+                    style={{
+                      height: `${pillHeight}px`,
+                      borderRadius: '30px',
+                      backgroundColor: pillColor,
+                      boxShadow:
+                        theme === 'dark'
+                          ? '0 14px 32px rgba(2, 6, 23, 0.45), inset 0 0 0 1px rgba(255,255,255,0.05)'
+                          : '0 14px 34px rgba(42, 49, 64, 0.22), inset 0 0 0 1px rgba(255,255,255,0.06)'
                     }}
-                  >
-                    {({ isActive }) => (
-                      <span className="relative flex h-full w-full flex-col items-center justify-center">
-                        <span
-                          className={`absolute flex items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)] ${
-                            isActive ? 'top-[-6px] h-[44px] w-[44px]' : 'top-[16px] h-6 w-6'
-                          }`}
-                          style={{
-                            backgroundColor: isActive ? activeAccentTheme.accent : 'transparent',
-                            color:
-                              theme === 'dark'
-                                ? isActive
-                                  ? '#ffffff'
-                                  : 'rgba(148, 163, 184, 0.92)'
-                                : isActive
-                                  ? '#ffffff'
-                                  : '#94a3b8',
-                            boxShadow: isActive
-                              ? theme === 'dark'
-                                ? `0 10px 24px rgba(${activeAccentTheme.accentRgb}, 0.22)`
-                                : `0 8px 20px rgba(${activeAccentTheme.accentRgb}, 0.14)`
-                              : 'none'
-                          }}
-                        >
-                          <MobileIcon
-                            name={item.icon}
-                            active={false}
-                            accent={
-                              isActive ? '#ffffff' : '#94a3b8'
-                            }
-                            className={isActive ? 'h-5 w-5' : 'h-6 w-6'}
-                          />
-                          {item.to === '/profile' && !isActive ? (
-                            <span
-                              className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rose-500"
-                              style={{ border: `2px solid ${theme === 'dark' ? '#020617' : '#ffffff'}` }}
-                            />
-                          ) : null}
-                        </span>
+                  />
 
-                        <span
-                          className={`absolute bottom-[8px] text-[10px] font-semibold transition-colors duration-500 ${
-                            theme === 'dark'
-                              ? isActive
-                                ? 'text-white'
-                                : 'text-white/45'
-                              : isActive
-                                ? 'text-[color:var(--accent)]'
-                                : 'text-slate-400'
-                          }`}
-                        >
-                          {item.label}
-                        </span>
-                      </span>
-                    )}
-                  </NavLink>
-                ))}
-              </div>
-            </div>
-          </nav>
+                  {/* sliding notch carved out of the pill top */}
+                  <div
+                    className="pointer-events-none absolute left-0 top-0 h-full transition-transform duration-[450ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                    style={{ width: `${slotPct}%`, transform: `translateX(${activeIndex * 100}%)` }}
+                  >
+                    <div
+                      className="absolute left-1/2 h-[34px] w-[108px] -translate-x-1/2"
+                      style={{ top: `${pillTop}px`, color: notchColor }}
+                    >
+                      <svg width="100%" height="100%" viewBox="0 0 108 34" fill="currentColor" preserveAspectRatio="none">
+                        <path d="M0 0 C 28 0, 27 34, 54 34 C 81 34, 80 0, 108 0 Z" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* nav items */}
+                  <div className="relative z-10 flex h-full w-full">
+                    {bottomNavItems.map(item => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        aria-label={item.label}
+                        className="relative h-full outline-none"
+                        style={{ width: `${slotPct}%` }}
+                        onClick={() => {
+                          if (item.to === '/ai-assistant' && typeof window !== 'undefined') {
+                            window.dispatchEvent(new Event('smartroom:home-menu-pressed'));
+                          }
+                        }}
+                      >
+                        {({ isActive }) => (
+                          <span className="relative flex h-full w-full items-end justify-center">
+                            <span
+                              className="absolute left-1/2 flex items-center justify-center rounded-full transition-all duration-[450ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                              style={{
+                                transform: 'translateX(-50%)',
+                                top: isActive ? `${pillTop - 20}px` : `${pillTop + 6}px`,
+                                height: isActive ? '50px' : '26px',
+                                width: isActive ? '50px' : '26px',
+                                backgroundColor: isActive ? accent : 'transparent',
+                                boxShadow: isActive
+                                  ? `0 6px 18px rgba(${accentRgb}, 0.45)`
+                                  : 'none'
+                              }}
+                            >
+                              <MobileIcon
+                                name={item.icon}
+                                active={false}
+                                accent={isActive ? '#ffffff' : inactiveIcon}
+                                className={isActive ? 'h-6 w-6' : 'h-[22px] w-[22px]'}
+                              />
+                              {item.to === '/profile' && !isActive ? (
+                                <span
+                                  className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-rose-500"
+                                  style={{ border: `2px solid ${pillColor}` }}
+                                />
+                              ) : null}
+                            </span>
+
+                            <span
+                              className="pointer-events-none absolute inset-x-0 truncate px-1 text-center text-[9px] font-semibold leading-none transition-colors duration-300"
+                              style={{ top: `${pillTop + 36}px`, color: isActive ? '#ffffff' : inactiveIcon }}
+                            >
+                              {item.label}
+                            </span>
+                          </span>
+                        )}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              </nav>
+            );
+          })()}
         </div>
 
       {logoPreviewOpen && (

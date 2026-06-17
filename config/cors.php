@@ -16,16 +16,10 @@ $frontendOrigins = array_values(array_unique(array_filter(array_merge($envOrigin
 return [
     'paths' => ['api/*', 'sanctum/csrf-cookie', '*'],
     'allowed_methods' => ['*'],
-    'allowed_origins' => [
-        env('FRONTEND_ORIGIN', 'http://localhost:5173'),
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'http://localhost:5175',
-        'http://127.0.0.1:5173',
-        'http://127.0.0.1:5174',
-        'http://127.0.0.1:5175',
+    'allowed_origins' => $frontendOrigins,
+    'allowed_origins_patterns' => [
+        '#^https://[a-z0-9-]+\.trycloudflare\.com$#',
     ],
-    'allowed_origins_patterns' => [],
     'allowed_headers' => ['*'],
     'exposed_headers' => [],
     'max_age' => 0,

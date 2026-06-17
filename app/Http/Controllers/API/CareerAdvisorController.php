@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -572,7 +573,15 @@ class CareerAdvisorController extends Controller
                 $payload['career_path_id'] = $careerPath->id;
             }
 
-            CareerRecommendation::create($payload);
+            try {
+                CareerRecommendation::create($payload);
+            } catch (\Throwable $exception) {
+                Log::warning('Skipping career recommendation persistence after database error.', [
+                    'user_id' => $user->id,
+                    'career' => $careerName,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
         }
     }
 
@@ -663,28 +672,26 @@ class CareerAdvisorController extends Controller
         }
 
         $metadata = [
-            'source' => 'ai',
-            'career' => $this->fitDbVarchar(trim((string) ($recommendation['career'] ?? '')), 120),
-            'skills' => $this->fitDbVarchar($skills, 120),
-            'subjects' => $this->fitDbVarchar($subjects, 120),
+            'skills' => $this->fitDbVarchar($skills, 80),
+            'subjects' => $this->fitDbVarchar($subjects, 80),
         ];
 
-        $encoded = json_encode($metadata, JSON_UNESCAPED_UNICODE);
-        if ($encoded !== false && strlen($encoded) <= 2000) {
+        $encoded = json_encode($metadata);
+        if ($encoded !== false && strlen($encoded) <= 240) {
             return $metadata;
         }
 
-        $skillsLimit = 100;
-        $subjectsLimit = 100;
-        for ($i = 0; $i < 12; $i++) {
+        $skillsLimit = 72;
+        $subjectsLimit = 72;
+        for ($i = 0; $i < 18; $i++) {
             $metadata['skills'] = $this->fitDbVarchar($skills, $skillsLimit);
             $metadata['subjects'] = $this->fitDbVarchar($subjects, $subjectsLimit);
-            $encoded = json_encode($metadata, JSON_UNESCAPED_UNICODE);
-            if ($encoded !== false && strlen($encoded) <= 2000) {
+            $encoded = json_encode($metadata);
+            if ($encoded !== false && strlen($encoded) <= 240) {
                 return $metadata;
             }
-            $skillsLimit = max(24, $skillsLimit - 8);
-            $subjectsLimit = max(24, $subjectsLimit - 8);
+            $skillsLimit = max(12, $skillsLimit - 6);
+            $subjectsLimit = max(12, $subjectsLimit - 6);
         }
 
         return null;

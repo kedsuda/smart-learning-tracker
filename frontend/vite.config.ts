@@ -33,6 +33,10 @@ export default defineConfig(({ mode }) => {
 
     server: {
       port: 5173,
+      host: true,
+      // allow access through the cloudflared quick tunnel
+      allowedHosts: ['.trycloudflare.com'],
+      hmr: { protocol: 'wss', clientPort: 443 },
       headers: {
         'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
       },

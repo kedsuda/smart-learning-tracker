@@ -914,7 +914,7 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
 
   if (mode === 'home') {
     return (
-      <div className="relative h-[calc(100dvh-11.5rem)] overflow-hidden lg:h-[calc(100vh-8.5rem)]">
+      <div className="smart-home-root relative h-[calc(100dvh-14.25rem)] overflow-hidden lg:h-[calc(100vh-8.5rem)]">
         <style>{`
           @keyframes float {
             0%, 100% { transform: translateY(0); }
@@ -939,6 +939,80 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
           @keyframes softGlow {
             0%, 100% { opacity: .72; transform: scale(1); }
             50% { opacity: 1; transform: scale(1.06); }
+          }
+          @media (max-width: 480px) and (max-height: 820px) {
+            .smart-home-root {
+              height: calc(100dvh - 14.75rem);
+            }
+            .smart-home-stack {
+              gap: 0.55rem;
+              padding-top: 0.5rem;
+            }
+            .smart-home-bubble {
+              border-radius: 1.35rem;
+              padding: 1rem 1.1rem;
+            }
+            .smart-home-actions {
+              gap: 0.45rem;
+            }
+            .smart-home-actions button {
+              padding: 0.55rem 0.72rem;
+              font-size: 10px;
+            }
+            .smart-home-label {
+              font-size: 9px;
+              letter-spacing: 0.18em;
+            }
+            .smart-home-message {
+              max-height: 5.1rem;
+            }
+            .smart-home-message p {
+              font-size: 13px;
+              line-height: 1.55;
+            }
+            .smart-home-robot-section {
+              padding-top: 0;
+            }
+            .smart-home-robot {
+              height: clamp(136px, 28vh, 210px);
+              width: clamp(136px, 28vh, 210px);
+            }
+            .smart-home-composer {
+              padding-bottom: 0;
+            }
+            .smart-home-input-shell {
+              border-radius: 1.65rem;
+              padding: 0.45rem 0.8rem;
+            }
+            .smart-home-input-shell textarea {
+              font-size: 14px;
+            }
+            .smart-home-input-shell .smart-home-tool-button {
+              height: 2.1rem;
+              width: 2.1rem;
+              margin-right: 0.45rem;
+            }
+            .smart-home-input-shell .smart-home-mic-button {
+              height: 2.1rem;
+              width: 2.1rem;
+              margin-left: 0.45rem;
+            }
+            .smart-home-send {
+              height: 52px;
+              width: 52px;
+            }
+          }
+          @media (max-width: 380px) and (max-height: 760px) {
+            .smart-home-root {
+              height: calc(100dvh - 15rem);
+            }
+            .smart-home-message {
+              max-height: 4.25rem;
+            }
+            .smart-home-robot {
+              height: clamp(118px, 24vh, 170px);
+              width: clamp(118px, 24vh, 170px);
+            }
           }
         `}</style>
         <div
@@ -1105,9 +1179,9 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
           </div>
         ) : null}
 
-        <div className="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-[430px] flex-col gap-4 px-3 pb-0 pt-3 md:gap-5">
+        <div className="smart-home-stack relative z-10 mx-auto flex h-full min-h-0 w-full max-w-[430px] flex-col gap-4 px-3 pb-0 pt-3 md:gap-5">
           <section
-            className="relative overflow-visible rounded-[1.8rem] px-5 py-5 ring-1 md:px-6 md:py-6"
+            className="smart-home-bubble relative overflow-visible rounded-[1.8rem] px-5 py-5 ring-1 md:px-6 md:py-6"
             style={{
               border: '1px solid var(--border)',
               background: 'color-mix(in srgb, var(--surface) 94%, transparent)',
@@ -1129,13 +1203,13 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
               className="pointer-events-none absolute inset-0 rounded-[1.8rem] ring-1 ring-black/[0.03]"
             />
             <div className="relative z-10">
-              <div className="flex items-start justify-between gap-3">
+              <div className="smart-home-actions flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="relative flex h-3 w-3">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/45" />
                     <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500" />
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-[color:var(--accent)]">Smart Assistant</span>
+                  <span className="smart-home-label text-[10px] font-bold uppercase tracking-[0.24em] text-[color:var(--accent)]">Smart Assistant</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <button
@@ -1183,7 +1257,7 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
                 </div>
               ) : (
                 <div className="relative mt-4">
-                  <div className="max-h-[7rem] overflow-y-auto pr-1">
+                  <div className="smart-home-message max-h-[7rem] overflow-y-auto pr-1">
                     <p className="text-[15px] font-semibold leading-7 text-[color:var(--text)]">
                       {assistantMessage}
                     </p>
@@ -1194,20 +1268,20 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
 
           </section>
 
-          <section className="relative flex min-h-0 flex-1 items-start justify-center pt-2 lg:pt-6 xl:pt-4">
+          <section className="smart-home-robot-section relative flex min-h-0 flex-1 items-start justify-center pt-2 lg:pt-6 xl:pt-4">
             <div className="relative flex w-full max-w-full flex-col items-center">
               <div style={{ animation: 'float 3.8s ease-in-out infinite' }}>
               <img
                 src={robotImage}
                 alt="AI Robot"
-                className="relative z-10 h-[300px] w-[300px] object-contain drop-shadow-[0_28px_38px_rgba(15,23,42,0.15)] md:h-[290px] md:w-[290px] lg:h-[310px] lg:w-[310px] xl:h-[330px] xl:w-[330px]"
+                className="smart-home-robot relative z-10 h-[clamp(180px,38vh,300px)] w-[clamp(180px,38vh,300px)] object-contain drop-shadow-[0_28px_38px_rgba(15,23,42,0.15)] sm:h-[280px] sm:w-[280px] md:h-[290px] md:w-[290px] lg:h-[310px] lg:w-[310px] xl:h-[330px] xl:w-[330px]"
                 style={{ filter: lowFxMode ? 'drop-shadow(0 10px 16px rgba(15,23,42,0.12))' : undefined }}
               />
               </div>
             </div>
           </section>
 
-          <section className="relative -translate-y-6 bg-transparent p-0 md:mb-8 md:translate-y-0" ref={attachmentTrayRef}>
+          <section className="smart-home-composer relative bg-transparent px-0 pt-0 pb-1 md:pb-3 lg:pb-0" ref={attachmentTrayRef}>
             <div className="mx-auto w-full max-w-2xl">
               <div
                 className={`mb-3 transition-all duration-200 ${
@@ -1290,7 +1364,7 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
               <div className="lg:flex lg:items-end lg:gap-4">
               <form onSubmit={handleAssistantSubmit} className="flex items-center gap-3 lg:flex-1">
                 <div
-                  className="flex flex-1 items-center rounded-[2rem] border-2 px-4 py-2.5 shadow-[0_12px_28px_rgba(15,23,42,0.05)]"
+                  className="smart-home-input-shell flex flex-1 items-center rounded-[2rem] border-2 px-4 py-2.5 shadow-[0_12px_28px_rgba(15,23,42,0.05)]"
                   style={{
                     background: 'color-mix(in srgb, var(--surface) 94%, transparent)',
                     borderColor: 'rgba(var(--accent-rgb),0.34)',
@@ -1301,7 +1375,7 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
                   <button
                     type="button"
                     onClick={() => setAttachmentTrayOpen(prev => !prev)}
-                    className="mr-3 flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-50 hover:text-[color:var(--accent)]"
+                    className="smart-home-tool-button mr-3 flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-50 hover:text-[color:var(--accent)]"
                     aria-label="แนบไฟล์และเครื่องมือ"
                   >
                     {attachmentTrayOpen ? (
@@ -1342,7 +1416,7 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
                       }
                     }}
                     disabled={!voiceInputSupported || isThinking}
-                    className={`ml-3 flex h-10 w-10 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    className={`smart-home-mic-button ml-3 flex h-10 w-10 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
                       isListening
                         ? 'bg-rose-50 text-rose-500 shadow-[0_10px_24px_rgba(244,63,94,0.15)]'
                         : 'text-slate-400 hover:bg-slate-50 hover:text-[color:var(--accent)]'
@@ -1373,7 +1447,7 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
                 <button
                   type="submit"
                   disabled={!canSendChat}
-                  className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full border text-[color:var(--accent)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-300"
+                  className="smart-home-send flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full border text-[color:var(--accent)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-300"
                   style={{
                     borderColor: 'rgba(var(--accent-rgb),0.24)',
                     background: 'var(--surface)',
@@ -1668,48 +1742,16 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-6 rounded-[34px] border border-white/70 bg-white/60 p-6 backdrop-blur-2xl shadow-[0_10px_40px_rgba(120,130,255,.08)]">
-                  <div className="flex items-center justify-between gap-3">
+                <aside className="rounded-[34px] border border-white/70 bg-white/60 p-6 backdrop-blur-2xl shadow-[0_10px_40px_rgba(120,130,255,.08)]">
+                  <h3 className="text-2xl font-bold text-violet-600">✦ ควิซล่าสุด</h3>
+                  <div className="mt-5 flex items-end justify-between gap-4">
                     <div>
-                      <h3 className="text-3xl font-bold text-slate-800">ภารกิจประจำวัน</h3>
-                      <p className="mt-1 text-sm text-slate-500">ติดตาม quest ที่ระบบสร้างให้อัตโนมัติ</p>
+                      <p className="text-slate-500">คะแนนควิซล่าสุด</p>
+                      <p className="mt-1 text-slate-400">ผ่านไป {latestQuiz ? 1 : 0} ควิซ</p>
                     </div>
-                    <button type="button" className="font-semibold text-green-500">เปิดบอร์ด</button>
+                    <div className="text-5xl font-bold text-violet-600">{latestQuiz?.percentage ?? 0}%</div>
                   </div>
-
-                  {[
-                    { title: 'วันนี้', color: 'from-green-500 to-emerald-400' },
-                    { title: 'สัปดาห์นี้', color: 'from-emerald-300 to-green-100' },
-                    { title: 'เดือนนี้', color: 'from-violet-500 to-purple-300' },
-                  ].map(item => (
-                    <div key={item.title} className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${item.color} text-xl text-white shadow`}>📅</div>
-                          <div>
-                            <p className="text-xl font-bold text-slate-800">{item.title}</p>
-                            <p className="text-slate-500">1 / 0 ชม.</p>
-                          </div>
-                        </div>
-                        <span className="text-2xl font-bold text-slate-700">0%</span>
-                      </div>
-                      <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-                        <div className="h-full w-[10%] rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400" />
-                      </div>
-                    </div>
-                  ))}
-
-                  <section className="mt-auto rounded-[24px] border border-slate-200 bg-white/50 p-6">
-                    <h4 className="text-2xl font-bold text-violet-600">✦ ควิซล่าสุด</h4>
-                    <div className="mt-4 flex items-end justify-between">
-                      <div>
-                        <p className="text-slate-500">คะแนนควิซล่าสุด</p>
-                        <p className="text-slate-400">ผ่านไป {latestQuiz ? 1 : 0} ควิซ</p>
-                      </div>
-                      <div className="text-5xl font-bold text-violet-600">{latestQuiz?.percentage ?? 0}%</div>
-                    </div>
-                  </section>
-                </div>
+                </aside>
               </div>
             </div>
           </>

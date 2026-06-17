@@ -11,30 +11,6 @@ type ProfileFormState = {
   previewUrl: string | null;
 };
 
-type GoalPeriodSummary = {
-  total_quiz_sets: number;
-  total_questions: number;
-  goal: {
-    target_questions: number | null;
-    target_quiz_sets: number | null;
-    status: 'achieved' | 'not_achieved' | 'not_set';
-    achieved: boolean;
-  };
-  quest: {
-    title: string;
-    status: 'pending' | 'completed' | 'failed';
-    progress_percent: number;
-    reward_points: number;
-    focus_subject_name?: string | null;
-  };
-};
-
-type GoalSummary = {
-  today: GoalPeriodSummary;
-  week: GoalPeriodSummary;
-  month: GoalPeriodSummary;
-};
-
 type CareerRecommendation = {
   career: string;
   skills: string;
@@ -97,7 +73,6 @@ export const ProfilePage = () => {
   });
   const [saving, setSaving] = useState(false);
   const [editingEnabled, setEditingEnabled] = useState(false);
-  const [goalSummary, setGoalSummary] = useState<GoalSummary | null>(null);
   const [careerRecommendation, setCareerRecommendation] = useState<CareerRecommendation | null>(null);
   const [careerInsight, setCareerInsight] = useState<CareerInsight | null>(null);
 
@@ -117,17 +92,12 @@ export const ProfilePage = () => {
 
     const loadProfilePanels = async () => {
       try {
-        const [goalsResponse, careerResponse, insightsResponse] = await Promise.allSettled([
-          api.get<GoalSummary>('/goals/summary'),
+        const [careerResponse, insightsResponse] = await Promise.allSettled([
           api.post<CareerRecommendation[]>('/career/recommendations'),
           api.get<CareerInsight>('/career/insights')
         ]);
 
         if (cancelled) return;
-
-        if (goalsResponse.status === 'fulfilled') {
-          setGoalSummary(goalsResponse.value.data);
-        }
 
         if (careerResponse.status === 'fulfilled') {
           const firstRecommendation = careerResponse.value.data?.[0] ?? null;
@@ -443,57 +413,6 @@ export const ProfilePage = () => {
             </div>
           </div>
 
-          <section className="rounded-[28px] border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-[0_18px_48px_rgba(15,23,42,0.10)]">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-bold text-[color:var(--text)]">ภารกิจประจำวัน</h2>
-                  <p className="mt-1 text-sm text-[color:var(--muted)]">วิดเจ็ตสั้นสำหรับ quest ที่ระบบสร้างให้อัตโนมัติ</p>
-                </div>
-              <Link to="/goals" className="text-sm font-semibold text-sky-600 hover:underline">
-                เปิดบอร์ด
-              </Link>
-            </div>
-            <div className="mt-6 space-y-5">
-              {[
-                { label: 'วันนี้', data: goalSummary?.today, tint: 'bg-amber-100 text-amber-600' },
-                { label: 'สัปดาห์นี้', data: goalSummary?.week, tint: 'bg-sky-100 text-sky-600' },
-                { label: 'เดือนนี้', data: goalSummary?.month, tint: 'bg-indigo-100 text-indigo-600' }
-              ].map(item => {
-                const questTitle = item.data?.quest?.title ?? 'ระบบกำลังเตรียมภารกิจ';
-                const progress = item.data?.quest?.progress_percent ?? 0;
-                return (
-                  <div key={item.label}>
-                    <div className="mb-2 flex items-end justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${item.tint}`}>
-                          <span className="text-sm font-bold">{item.label.slice(0, 1)}</span>
-                        </div>
-                        <div>
-                          <span className="block text-sm font-medium text-[color:var(--muted)]">{item.label}</span>
-                          <span className="block text-base font-bold text-[color:var(--text)]">{questTitle}</span>
-                          <span className="text-sm text-[color:var(--muted)]">
-                            {item.data?.quest?.focus_subject_name ?? 'ภารกิจจะอิงจากวิชาที่คุณทำล่าสุด'}
-                          </span>
-                        </div>
-                      </div>
-                      <span className="text-sm font-bold text-[color:var(--text)]">{progress}%</span>
-                    </div>
-                    <div className="h-3 w-full overflow-hidden rounded-full bg-[color:var(--surface-2)]">
-                      <div className="h-full rounded-full bg-sky-500 transition-all" style={{ width: `${progress}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-8 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4">
-              <h4 className="text-sm font-bold text-[color:var(--text)]">โบนัสภารกิจ</h4>
-              <p className="mt-1 text-sm text-[color:var(--muted)]">
-                {goalSummary?.today?.quest
-                  ? `ทำสำเร็จรับ +${goalSummary.today.quest.reward_points} แต้ม`
-                  : 'เมื่อระบบสร้าง quest แล้ว โบนัสจะแสดงตรงนี้'}
-              </p>
-            </div>
-          </section>
         </section>
 
       </div>

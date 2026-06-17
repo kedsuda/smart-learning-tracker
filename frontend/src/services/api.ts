@@ -22,6 +22,16 @@ const toApiBaseURL = (value: string) => {
   return `${trimmed}/api`;
 };
 
+const isLoopbackURL = (value?: string | null) => {
+  if (!value) return false;
+  try {
+    const parsed = new URL(value, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+    return ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
 const rawBaseURL = import.meta.env.VITE_API_URL?.trim();
 const resolvedBaseURL = rawBaseURL ? toApiBaseURL(rawBaseURL) : '';
 const directProxyTarget = import.meta.env.VITE_API_PROXY_TARGET?.trim();
@@ -83,8 +93,13 @@ const shouldUseResolvedBaseOnLocalhost = (() => {
 const localhostProxyBaseURL = `${localProjectPrefix}/api`;
 const localhostApacheBaseURL = `${localProjectPrefix}/public/index.php/api`;
 const localhostDefaultBaseURL = isViteDevPort ? localhostProxyBaseURL : localhostApacheBaseURL;
+const shouldUseSameOriginApi =
+  !isLocalhost &&
+  (isLoopbackURL(resolvedBaseURL) || !resolvedBaseURL);
 const baseURL =
-  isLocalhost && !shouldUseResolvedBaseOnLocalhost
+  shouldUseSameOriginApi
+    ? '/api'
+    : isLocalhost && !shouldUseResolvedBaseOnLocalhost
     ? localhostDefaultBaseURL
     : resolvedBaseURL || (isLocalhost ? localhostDefaultBaseURL : '/api');
 const proxyTarget = directProxyTarget;

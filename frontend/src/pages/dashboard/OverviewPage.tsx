@@ -1976,7 +1976,7 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
                 })}
             </div>
 
-            <div className="fixed bottom-[5.15rem] left-0 right-0 z-30 flex px-1 md:hidden">
+            <div className="fixed bottom-[5.75rem] left-0 right-0 z-30 flex px-1 md:hidden">
               <div
                 className="flex w-full items-center justify-between gap-3 overflow-x-auto border-t px-4 py-4 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] backdrop-blur-md"
                 style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface) 96%, transparent)' }}

@@ -263,7 +263,7 @@ export const GoalsPage = () => {
         month: String(nextSummary.month.goal.target_quiz_sets || ''),
       });
     } catch (err: any) {
-      setError(err.response?.data?.message ?? 'โหลดภารกิจประจำวันไม่สำเร็จ');
+      setError(err.response?.data?.message ?? 'โหลดภารกิจไม่สำเร็จ');
     } finally {
       if (!silent) {
         setLoading(false);
