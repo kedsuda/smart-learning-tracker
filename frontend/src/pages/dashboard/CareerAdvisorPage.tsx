@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -156,7 +157,6 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [clearingHistory, setClearingHistory] = useState(false);
-  const [deletingMessageId, setDeletingMessageId] = useState<number | null>(null);
   const [voiceInputSupported, setVoiceInputSupported] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const attachmentTrayRef = useRef<HTMLDivElement | null>(null);
@@ -425,6 +425,11 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
 
   const chatRoomStorageKey = `smartroom-chat-rooms-${userId || 'guest'}`;
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(chatRoomStorageKey, JSON.stringify(chatRooms));
+  }, [chatRoomStorageKey, chatRooms]);
+
   const upsertChatRoomMeta = (
     roomId: string,
     patch: Partial<Pick<ChatRoomMeta, 'title' | 'last_message' | 'updated_at'>>
@@ -433,17 +438,22 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
       const nowIso = patch.updated_at ?? new Date().toISOString();
       const next = [...prev];
       const index = next.findIndex(room => room.id === roomId);
+      const cleanTitle = patch.title?.trim();
+      const cleanPatch = {
+        ...(cleanTitle ? { title: cleanTitle } : {}),
+        ...(patch.last_message !== undefined ? { last_message: patch.last_message } : {}),
+        updated_at: nowIso,
+      };
 
       if (index >= 0) {
         next[index] = {
           ...next[index],
-          ...patch,
-          updated_at: nowIso,
+          ...cleanPatch,
         };
       } else {
         next.push({
           id: roomId,
-          title: patch.title?.trim() || `แชท ${prev.length + 1}`,
+          title: cleanTitle || `แชท ${prev.length + 1}`,
           updated_at: nowIso,
           last_message: patch.last_message,
         });
@@ -695,28 +705,43 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
     }
   };
 
-  const deleteChatMessage = async (messageId: number) => {
-    if (deletingMessageId !== null) return;
+  const deleteChatRoom = async (roomId: string) => {
+    const room = chatRooms.find(item => item.id === roomId);
+    if (!room) return;
 
-    const confirmed = window.confirm('ต้องการลบข้อความนี้ใช่หรือไม่?');
+    const confirmed = window.confirm(`ต้องการลบหัวข้อแชท “${room.title || 'แชทนี้'}” และข้อความทั้งหมดใช่หรือไม่?`);
     if (!confirmed) return;
 
-    setDeletingMessageId(messageId);
     setChatError(null);
-
     try {
-      await api.delete(`/assistant/chat/history/${messageId}`);
-      setChatMessages(prev => prev.filter(message => message.id !== messageId));
+      await api.delete('/assistant/chat/history', {
+        data: { room_id: roomId },
+      });
+
+      const remainingRooms = chatRooms.filter(item => item.id !== roomId);
+      if (remainingRooms.length > 0) {
+        setChatRooms(remainingRooms);
+        if (activeChatRoomId === roomId) {
+          setActiveChatRoomId(remainingRooms[0].id);
+        }
+      } else {
+        const fallbackRoom: ChatRoomMeta = {
+          id: `room-${Date.now()}`,
+          title: 'แชทใหม่',
+          updated_at: new Date().toISOString(),
+          last_message: '',
+        };
+        setChatRooms([fallbackRoom]);
+        setActiveChatRoomId(fallbackRoom.id);
+        setChatMessages([]);
+      }
     } catch (err) {
       console.error(err);
-      const message = axios.isAxiosError(err)
-        ? ((err.response?.data as { message?: string } | undefined)?.message ?? err.message)
-        : err instanceof Error
-          ? err.message
-          : 'ลบข้อความไม่สำเร็จ';
-      setChatError(message);
-    } finally {
-      setDeletingMessageId(null);
+      setChatError(
+        axios.isAxiosError(err)
+          ? ((err.response?.data as { message?: string } | undefined)?.message ?? err.message)
+          : 'ลบหัวข้อแชทไม่สำเร็จ'
+      );
     }
   };
 
@@ -1027,18 +1052,21 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
         {!lowFxMode ? <div className="absolute right-4 top-24 h-56 w-56 rounded-full blur-3xl" style={{ background: 'rgba(var(--accent-rgb),0.10)' }} /> : null}
         {!lowFxMode ? <div className="absolute inset-x-0 top-[38%] mx-auto h-52 w-52 rounded-full blur-[88px]" style={{ background: 'rgba(var(--accent-rgb),0.18)', animation: 'softGlow 4.8s ease-in-out infinite' }} /> : null}
 
-        {historyOpen ? (
+        {historyOpen && typeof document !== 'undefined' ? createPortal(
           <div
-            className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/55 px-4"
+            className="fixed inset-0 z-[9999] flex items-stretch justify-center bg-slate-950/55 backdrop-blur-sm md:items-center md:p-4"
             onClick={() => setHistoryOpen(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="ประวัติการสนทนา"
           >
             <div
-              className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-[1.5rem] border md:max-h-[82vh] md:flex-row md:rounded-[2rem]"
+              className="flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden border md:h-auto md:max-h-[92dvh] md:min-h-[76vh] md:flex-row md:rounded-[2rem]"
               style={{ borderColor: 'var(--border)', background: 'var(--surface)', boxShadow: 'var(--shadow-soft)' }}
               onClick={event => event.stopPropagation()}
             >
               <aside className="w-full border-b md:max-w-[320px] md:border-b-0 md:border-r" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 88%, transparent)' }}>
-                <div className="px-4 pb-4 pt-5">
+                <div className="px-4 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-5">
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-sm font-bold text-[color:var(--text)]">แชทของฉัน</p>
                     <button
@@ -1083,26 +1111,63 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
                       className="w-full bg-transparent text-sm text-[color:var(--text)] outline-none placeholder:text-[color:var(--muted)]"
                     />
                   </div>
-                  <div className="max-h-[28vh] space-y-2 overflow-y-auto pr-1 md:max-h-[62vh]">
-                    {filteredChatRooms.map(room => (
+                  <div className="mb-2 flex items-center justify-between px-1">
+                    <span className="text-[11px] font-semibold text-[color:var(--muted)]">
+                      {filteredChatRooms.length} หัวข้อ
+                    </span>
+                    {chatRoomSearch ? (
                       <button
-                        key={room.id}
                         type="button"
-                        onClick={() => {
-                          setActiveChatRoomId(room.id);
-                          setChatError(null);
-                        }}
-                        className={`w-full rounded-xl border px-3 py-2 text-left transition ${
+                        onClick={() => setChatRoomSearch('')}
+                        className="text-[11px] font-semibold text-[color:var(--accent)]"
+                      >
+                        ล้างค้นหา
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain px-1 pb-2 pr-4 md:mx-0 md:block md:max-h-[calc(92dvh-14rem)] md:space-y-2 md:overflow-y-auto md:overscroll-contain md:px-0 md:pb-0 md:pr-1">
+                    {filteredChatRooms.map(room => (
+                      <div
+                        key={room.id}
+                        className={`group flex min-w-[min(78vw,17rem)] snap-start items-center gap-2 rounded-xl border p-2 transition md:min-w-0 ${
                           room.id === activeChatRoomId
                             ? 'border-[color:var(--accent)] shadow-sm'
                             : 'border-transparent hover:border-[color:var(--border)]'
                         }`}
                         style={{ background: room.id === activeChatRoomId ? 'var(--surface)' : 'color-mix(in srgb, var(--surface) 78%, transparent)' }}
                       >
-                        <p className="truncate text-sm font-semibold text-[color:var(--text)]">{room.title}</p>
-                        <p className="mt-1 truncate text-xs text-[color:var(--muted)]">{room.last_message || 'ยังไม่มีข้อความ'}</p>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveChatRoomId(room.id);
+                            setChatError(null);
+                          }}
+                          className="min-w-0 flex-1 px-1.5 py-1.5 text-left"
+                        >
+                          <p className="truncate text-sm font-semibold text-[color:var(--text)]">{room.title || 'แชทไม่มีชื่อ'}</p>
+                          <p className="mt-1 truncate text-xs text-[color:var(--muted)]">{room.last_message || 'ยังไม่มีข้อความ'}</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteChatRoom(room.id)}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-rose-500/10 hover:text-rose-500 md:h-8 md:w-8 md:opacity-0 md:group-hover:opacity-100"
+                          aria-label={`ลบหัวข้อ ${room.title || 'แชทไม่มีชื่อ'}`}
+                          title="ลบหัวข้อแชท"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="m19 6-1 14H6L5 6" />
+                            <path d="M10 11v5M14 11v5" />
+                          </svg>
+                        </button>
+                      </div>
                     ))}
+                    {filteredChatRooms.length === 0 ? (
+                      <div className="w-full shrink-0 rounded-xl border border-dashed px-3 py-6 text-center text-xs text-[color:var(--muted)]" style={{ borderColor: 'var(--border)' }}>
+                        ไม่พบหัวข้อแชท
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </aside>
@@ -1115,69 +1180,129 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
                       {chatRooms.find(room => room.id === activeChatRoomId)?.title ?? 'ประวัติการสนทนา'}
                     </h3>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={clearChatHistory}
-                      disabled={clearingHistory || chatMessages.length === 0}
-                      className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {clearingHistory ? 'กำลังลบ...' : 'ลบประวัติ'}
-                    </button>
-                  </div>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6">
+                <div
+                  className="min-h-0 flex-1 overflow-y-auto bg-[color:var(--surface-2)]/45 px-4 py-5 md:px-7 md:py-6"
+                  style={{ scrollbarGutter: 'stable' }}
+                >
                   {chatLoading ? (
                     <div className="rounded-2xl px-4 py-4 text-[13px] text-[color:var(--muted)]" style={{ background: 'var(--surface-2)' }}>กำลังโหลดประวัติการคุย...</div>
                   ) : chatMessages.length === 0 ? (
-                    <div className="rounded-2xl px-4 py-4 text-[13px] text-[color:var(--muted)]" style={{ background: 'var(--surface-2)' }}>ยังไม่มีประวัติการคุยในห้องนี้</div>
+                    <div className="mx-auto mt-8 max-w-md rounded-[1.75rem] border border-dashed px-6 py-10 text-center" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:rgba(var(--accent-rgb),0.10)] text-[color:var(--accent)]">
+                        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />
+                        </svg>
+                      </div>
+                      <p className="mt-4 font-bold text-[color:var(--text)]">เริ่มบทสนทนาใหม่</p>
+                      <p className="mt-1 text-sm text-[color:var(--muted)]">พิมพ์ข้อความด้านล่างเพื่อเริ่มคุยกับผู้ช่วย</p>
+                    </div>
                   ) : (
-                    <div className="space-y-3">
-                      {chatMessages.slice(-24).map(message => (
-                        <div
-                          key={message.id}
-                          className={`rounded-[1.4rem] px-4 py-3 shadow-sm ring-1 ring-black/5 ${
-                            message.sender_type === 'assistant'
-                              ? 'text-[color:var(--text)]'
-                              : 'bg-[color:rgba(var(--accent-rgb),0.08)] text-[color:var(--text)]'
-                          }`}
-                          style={message.sender_type === 'assistant' ? { background: 'var(--surface-2)' } : undefined}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[color:var(--muted)]">
-                              {message.sender_type === 'assistant' ? 'AI' : 'You'}
-                            </span>
-                            <span className="text-[10px] text-[color:var(--muted)]">
-                              {message.created_at
-                                ? new Date(message.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-                                : ''}
-                            </span>
+                    <div className="mx-auto max-w-4xl space-y-5">
+                      {chatMessages.slice(-40).map(message => {
+                        const isAssistant = message.sender_type === 'assistant';
+                        return (
+                          <div key={message.id} className={`group flex items-end gap-2.5 ${isAssistant ? 'justify-start' : 'justify-end'}`}>
+                            {isAssistant ? (
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-xs font-black text-[color:var(--on-accent)] shadow-sm">
+                                AI
+                              </div>
+                            ) : null}
+                            <div className={`max-w-[84%] md:max-w-[72%] ${isAssistant ? '' : 'text-right'}`}>
+                              <div
+                                className={`relative rounded-[1.5rem] px-4 py-3 text-left shadow-sm ${
+                                  isAssistant
+                                    ? 'rounded-bl-md border text-[color:var(--text)]'
+                                    : 'rounded-br-md bg-[color:var(--accent)] text-[color:var(--on-accent)]'
+                                }`}
+                                style={isAssistant ? { borderColor: 'var(--border)', background: 'var(--surface)' } : undefined}
+                              >
+                                <p className="whitespace-pre-wrap break-words text-[14px] leading-6 md:text-[15px]">
+                                  {isAssistant
+                                    ? normalizeAssistantFallback(message.message)
+                                    : message.message}
+                                </p>
+                              </div>
+                              <div className={`mt-1.5 flex items-center px-1 ${isAssistant ? 'justify-start' : 'justify-end'}`}>
+                                <span className="text-[10px] text-[color:var(--muted)]">
+                                  {message.created_at
+                                    ? new Date(message.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+                                    : ''}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <p className="mt-2 whitespace-pre-wrap text-[14px] leading-6">
-                            {message.sender_type === 'assistant'
-                              ? normalizeAssistantFallback(message.message)
-                              : message.message}
-                          </p>
-                          <div className="mt-2 flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() => void deleteChatMessage(message.id)}
-                              disabled={deletingMessageId !== null}
-                              className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-semibold text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {deletingMessageId === message.id ? 'กำลังลบ...' : 'ลบ'}
-                            </button>
+                        );
+                      })}
+                      {isThinking ? (
+                        <div className="flex items-end gap-2.5">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-xs font-black text-[color:var(--on-accent)] shadow-sm">AI</div>
+                          <div className="flex items-center gap-1.5 rounded-[1.5rem] rounded-bl-md border px-4 py-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                            <span className="h-2 w-2 animate-bounce rounded-full bg-[color:var(--accent)] [animation-delay:-0.2s]" />
+                            <span className="h-2 w-2 animate-bounce rounded-full bg-[color:var(--accent)] [animation-delay:-0.1s]" />
+                            <span className="h-2 w-2 animate-bounce rounded-full bg-[color:var(--accent)]" />
                           </div>
                         </div>
-                      ))}
+                      ) : null}
                     </div>
                   )}
+                </div>
+
+                <div className="shrink-0 border-t px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 md:px-6 md:pb-5 md:pt-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  {chatError ? (
+                    <p className="mx-auto mb-2 max-w-4xl rounded-xl bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-500">{chatError}</p>
+                  ) : null}
+                  <form onSubmit={handleAssistantSubmit} className="mx-auto flex max-w-4xl items-end gap-2">
+                    <div className="flex min-h-[52px] flex-1 items-end rounded-[1.6rem] border px-4 py-2 shadow-sm transition focus-within:border-[color:var(--accent)] focus-within:ring-4 focus-within:ring-[color:rgba(var(--accent-rgb),0.10)]" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                      <textarea
+                        value={inputText}
+                        onChange={event => setInputText(event.target.value)}
+                        placeholder="ส่งข้อความ..."
+                        disabled={isThinking}
+                        rows={1}
+                        className="max-h-28 min-h-[36px] flex-1 resize-none bg-transparent py-2 text-[15px] text-[color:var(--text)] outline-none placeholder:text-[color:var(--muted)]"
+                        onKeyDown={event => {
+                          if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault();
+                            void submitAssistantPrompt(inputText);
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={isListening ? stopVoiceInput : startVoiceInput}
+                        disabled={!voiceInputSupported || isThinking}
+                        className={`mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40 ${
+                          isListening ? 'bg-rose-500/10 text-rose-500' : 'text-[color:var(--muted)] hover:bg-[color:var(--surface)] hover:text-[color:var(--accent)]'
+                        }`}
+                        aria-label={isListening ? 'หยุดฟังเสียง' : 'พูดเป็นข้อความ'}
+                      >
+                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="3" width="6" height="11" rx="3" />
+                          <path d="M5 10v2a7 7 0 0 0 14 0v-2" />
+                          <path d="M12 19v2" />
+                        </svg>
+                      </button>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={!canSendChat}
+                      className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-[color:var(--on-accent)] shadow-[0_10px_24px_rgba(var(--accent-rgb),0.28)] transition hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="ส่งข้อความ"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 2 11 13" />
+                        <path d="M22 2 15 22 11 13 2 9 22 2Z" />
+                      </svg>
+                    </button>
+                  </form>
+                  <p className="mt-2 text-center text-[10px] text-[color:var(--muted)]">Enter เพื่อส่ง · Shift + Enter เพื่อขึ้นบรรทัดใหม่</p>
                 </div>
               </div>
             </div>
           </div>
-        ) : null}
+        , document.body) : null}
 
         <div className="smart-home-stack relative z-10 mx-auto flex h-full min-h-0 w-full max-w-[430px] flex-col gap-4 px-3 pb-0 pt-3 md:gap-5">
           <section
@@ -1361,6 +1486,32 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
                 </div>
               ) : null}
 
+              {/* Smart Menu — mobile only, sits right above the chat input */}
+              <div className="mb-2.5 flex justify-center gap-2 lg:hidden">
+                {quickActionItems.map(action => (
+                  <button
+                    key={action.id}
+                    type="button"
+                    onClick={() => navigate(action.to)}
+                    className="flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-2xl border px-2 py-2.5 transition active:scale-[0.97]"
+                    style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface) 94%, transparent)', boxShadow: '0 6px 16px rgba(15,23,42,0.05)' }}
+                    title={action.label}
+                  >
+                    <span
+                      className={
+                        action.id === 'study-capture'
+                          ? 'relative flex h-9 w-9 shrink-0 items-center justify-center overflow-visible'
+                          : `flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.9rem] border border-white/80 ${action.iconClassName ?? ''}`
+                      }
+                      style={action.id === 'study-capture' ? undefined : action.tileStyle}
+                    >
+                      {action.icon}
+                    </span>
+                    <span className="line-clamp-2 w-full text-center text-[11px] font-semibold leading-tight text-[color:var(--text)]">{action.label}</span>
+                  </button>
+                ))}
+              </div>
+
               <div className="lg:flex lg:items-end lg:gap-4">
               <form onSubmit={handleAssistantSubmit} className="flex items-center gap-3 lg:flex-1">
                 <div
@@ -1493,7 +1644,14 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
                   }}
                 >
                   <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--accent)]">Smart Menu</p>
-                  <span className="text-[10px] font-medium text-slate-400">ลากได้</span>
+                  <span className="text-slate-400" title="ลากเพื่อย้ายตำแหน่ง" aria-label="ลากได้">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2" />
+                      <path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2" />
+                      <path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8" />
+                      <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+                    </svg>
+                  </span>
                 </div>
                 <div
                   className="space-y-2.5"
@@ -1563,12 +1721,12 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
             ) : null}
 
             {info ? (
-              <div className="rounded-[2rem] p-4 text-sm shadow-soft" style={{ border: '1px solid rgba(var(--accent-rgb),0.18)', background: 'rgba(var(--accent-rgb),0.10)', color: 'var(--accent)' }}>
+              <div className="rounded-[2rem] p-4 text-sm shadow-soft" style={{ border: '1px solid rgba(var(--accent-rgb),0.18)', background: 'rgba(var(--accent-rgb),0.10)', color: 'var(--accent-ink)' }}>
                 {info}
               </div>
             ) : null}
 
-            <section className="career-soft-card p-4 md:p-5">
+            <section className="rounded-[1.75rem] border p-4 shadow-soft md:p-5" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                   <label className="text-muted font-semibold whitespace-nowrap">ภาคเรียน</label>
@@ -1576,8 +1734,8 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
                     <select
                       value={selectedSemesterKey}
                       onChange={event => setSelectedSemesterKey(event.target.value)}
-                      className="w-full rounded-xl bg-white/50 border border-white/40 px-4 py-2.5 pr-10 text-sm text-[color:var(--text)] outline-none transition cursor-pointer appearance-none"
-                      style={{ boxShadow: '0 0 0 0 rgba(0,0,0,0)' }}
+                      className="w-full cursor-pointer appearance-none rounded-xl border px-4 py-3 pr-10 text-sm text-[color:var(--text)] outline-none transition focus:border-[color:var(--accent)] focus:ring-4 focus:ring-[color:rgba(var(--accent-rgb),0.10)]"
+                      style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
                     >
                       {semesterOptions.map(option => (
                         <option key={option.key} value={option.key}>
@@ -1597,8 +1755,8 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
                   type="button"
                   onClick={analyzeNow}
                   disabled={loading}
-                  className="text-white px-6 py-2.5 rounded-xl font-bold inline-flex items-center justify-center gap-2 w-full md:w-auto disabled:cursor-not-allowed disabled:opacity-70"
-                  style={{ background: 'linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 72%, white))', boxShadow: '0 16px 30px rgba(var(--accent-rgb),0.24)' }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 font-bold shadow-[0_12px_24px_rgba(var(--accent-rgb),0.24)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70 md:w-auto"
+                  style={{ background: 'var(--accent)', color: 'var(--on-accent)', WebkitTextFillColor: 'var(--on-accent)' }}
                 >
                   <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -1611,7 +1769,21 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
               </div>
             </section>
 
-            <div className="rounded-[40px] p-4 md:p-6" style={{ background: 'linear-gradient(135deg, rgba(205,226,252,0.48), rgba(233,238,255,0.55))' }}>
+            {recommendations.length === 0 ? (
+              <section className="rounded-[2rem] border p-6 text-center shadow-soft md:p-10" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[color:rgba(var(--accent-rgb),0.10)] text-[color:var(--accent-ink)]">
+                  <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
+                    <path d="M9 12h6M12 9v6" />
+                  </svg>
+                </div>
+                <h2 className="mt-5 text-2xl font-bold text-[color:var(--text)]">ยังไม่มีข้อมูลเพียงพอสำหรับแนะนำอาชีพ</h2>
+                <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[color:var(--muted)]">
+                  ทำแบบฝึกหัดในรายวิชาต่าง ๆ ก่อน ระบบจึงจะสามารถวิเคราะห์ความถนัดและแนะนำอาชีพได้อย่างมีหลักฐาน
+                </p>
+              </section>
+            ) : (
+            <div className="rounded-[2rem] border p-4 md:p-6" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
               <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
                 <div className="flex flex-col gap-6">
                   <section
@@ -1635,21 +1807,23 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
 
                       <p className="mt-7 text-base text-slate-500">เส้นทางอาชีพที่เหมาะกับคุณ</p>
                       <h2 className="mt-1 text-4xl font-bold leading-tight text-[#17346f] md:text-6xl">
-                        {primaryRecommendation?.title ?? 'ยังไม่มีข้อมูลแนะนำ'} ✨
+                        {primaryRecommendation?.title ?? 'ยังไม่มีข้อมูลเพียงพอ'}
                       </h2>
 
                       <div className="mt-8 flex items-center gap-4">
                         <div className="h-4 flex-1 overflow-hidden rounded-full bg-slate-100">
                           <div
                             className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400"
-                            style={{ width: `${Math.max(8, primaryRecommendation?.score ?? 0)}%` }}
+                            style={{ width: `${primaryRecommendation?.score ?? 0}%` }}
                           />
                         </div>
-                        <span className="whitespace-nowrap text-sm font-medium text-slate-500">ระดับความเหมาะสม {primaryRecommendation?.score ?? 0}%</span>
+                        <span className="whitespace-nowrap text-sm font-medium text-slate-500">
+                          ระดับความเหมาะสม {primaryRecommendation ? `${primaryRecommendation.score}%` : '--'}
+                        </span>
                       </div>
 
                       <p className="mt-6 max-w-[880px] text-base leading-relaxed text-slate-500">
-                        {primaryRecommendation?.reason ?? 'เนื่องจากผู้ใช้มีการบันทึกและเรียนในวิชาที่เกี่ยวข้อง แต่ยังขาดการสรุปและวิเคราะห์เชิงลึกเพิ่มเติม'}
+                        {primaryRecommendation?.reason ?? 'ระบบจะแนะนำเมื่อมีผลแบบฝึกหัดจริงที่เพียงพอและชี้ความถนัดได้เท่านั้น'}
                       </p>
 
                       <button
@@ -1754,6 +1928,7 @@ export const CareerAdvisorPage = ({ mode = 'career' }: CareerAdvisorPageProps) =
                 </aside>
               </div>
             </div>
+            )}
           </>
         )}
     </div>

@@ -233,7 +233,7 @@ export const StudyDigestPage = () => {
 
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-[color:var(--accent)]">Study Summary</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-[color:var(--accent-ink)]">Study Summary</p>
             <h1 className="mt-1.5 text-[2.1rem] font-bold leading-tight text-[color:var(--text)]">สรุปการเรียน</h1>
             <p className="mt-2 max-w-2xl text-base leading-7 text-[color:var(--muted)]">สรุปเป็นรายวัน รายสัปดาห์ รายเดือน หรือรายปีจากบันทึกการเรียนจริง</p>
           </div>
@@ -241,7 +241,7 @@ export const StudyDigestPage = () => {
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-[0_8px_18px_rgba(var(--accent-rgb),0.18)] ring-1"
             style={{
               background: 'rgba(var(--accent-rgb),0.10)',
-              color: 'var(--accent)',
+              color: 'var(--accent-ink)',
               borderColor: 'rgba(var(--accent-rgb),0.14)',
             }}
           >
@@ -258,7 +258,7 @@ export const StudyDigestPage = () => {
               style={{
                 borderColor: 'rgba(var(--accent-rgb),0.16)',
                 background: 'rgba(var(--accent-rgb),0.10)',
-                color: 'var(--accent)',
+                color: 'var(--accent-ink)',
               }}
             >
               <Filter size={16} />
@@ -287,7 +287,7 @@ export const StudyDigestPage = () => {
                 style={
                   range === option.key
                     ? {
-                        color: 'var(--accent)',
+                        color: 'var(--accent-ink)',
                         boxShadow: '0 8px 18px rgba(var(--accent-rgb),0.12)',
                       }
                     : undefined
@@ -306,10 +306,11 @@ export const StudyDigestPage = () => {
               <p className="mt-1 text-sm text-[color:var(--muted)]">อ่านภาพรวมแบบรวดเร็วจากบันทึกการเรียนของคุณ</p>
             </div>
             <span
-              className="rounded-full border bg-white px-3 py-1 text-[10px] font-bold shadow-sm"
+              className="rounded-full border px-3 py-1 text-[10px] font-bold shadow-sm"
               style={{
                 borderColor: 'rgba(var(--accent-rgb),0.18)',
-                color: 'var(--accent)',
+                color: 'var(--accent-ink)',
+                background: 'var(--surface-2)',
               }}
             >
               {filteredLogs.length} รายการ
@@ -340,8 +341,8 @@ export const StudyDigestPage = () => {
             ) : (
               <div className="relative z-10">
                 <div
-                  className="mb-4 inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-bold text-white shadow-[0_10px_18px_rgba(var(--accent-rgb),0.22)]"
-                  style={{ background: 'var(--accent)' }}
+                  className="mb-4 inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-bold shadow-[0_10px_18px_rgba(var(--accent-rgb),0.22)]"
+                  style={{ background: 'var(--accent)', color: 'var(--on-accent)', WebkitTextFillColor: 'var(--on-accent)' }}
                 >
                   <Sparkles size={12} />
                   สรุปโดย AI
@@ -379,10 +380,10 @@ export const StudyDigestPage = () => {
               className="rounded-[1.4rem] border p-4"
               style={{
                 borderColor: 'rgba(var(--accent-rgb),0.14)',
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(var(--accent-rgb),0.08) 100%)',
+                background: 'linear-gradient(180deg, var(--surface) 0%, rgba(var(--accent-rgb),0.08) 100%)',
               }}
             >
-              <div className="mb-3 flex items-center gap-1.5" style={{ color: 'var(--accent)' }}>
+              <div className="mb-3 flex items-center gap-1.5" style={{ color: 'var(--accent-ink)' }}>
                 <BookOpen size={14} />
                 <span className="text-[11px] font-bold">บันทึก</span>
               </div>
@@ -393,10 +394,10 @@ export const StudyDigestPage = () => {
               className="rounded-[1.4rem] border p-4"
               style={{
                 borderColor: 'rgba(var(--accent-rgb),0.14)',
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(var(--accent-rgb),0.08) 100%)',
+                background: 'linear-gradient(180deg, var(--surface) 0%, rgba(var(--accent-rgb),0.08) 100%)',
               }}
             >
-              <div className="mb-3 flex items-center gap-1.5" style={{ color: 'var(--accent)' }}>
+              <div className="mb-3 flex items-center gap-1.5" style={{ color: 'var(--accent-ink)' }}>
                 <BarChart3 size={14} />
                 <span className="text-[11px] font-bold">เวลาเรียนรวม</span>
               </div>
@@ -430,7 +431,7 @@ export const StudyDigestPage = () => {
                         className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ring-1"
                         style={{
                           background: 'rgba(var(--accent-rgb),0.10)',
-                          color: 'var(--accent)',
+                          color: 'var(--accent-ink)',
                           borderColor: 'rgba(var(--accent-rgb),0.14)',
                         }}
                       >

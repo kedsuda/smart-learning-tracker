@@ -1,4 +1,5 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { SlidersHorizontal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api, apiFallbackClients } from '../../services/api';
 import { useAppAlert } from '../../context/AppAlertContext';
@@ -383,9 +384,9 @@ export const QuizLibraryPage = () => {
         </ol>
       </div>
 
-      <div className="ai-summary-theme print:hidden">
+      <div className="quiz-library-page px-4 pb-10 pt-4 print:hidden sm:px-0 sm:pt-0 lg:pb-0">
         <div className="mx-auto w-full max-w-6xl space-y-6">
-          <section className="quiz-hero quiz-fade-in rounded-[1.75rem] p-5 text-[color:var(--on-accent)] shadow-glow md:p-6">
+          <section className="quiz-hero quiz-fade-in rounded-[1.75rem] p-5 shadow-soft md:p-6">
             <div className="grid gap-4 lg:grid-cols-[1.25fr,0.9fr] lg:items-end">
               <div className="space-y-3">
                 <span className="quiz-hero__label">Practice Studio</span>
@@ -395,23 +396,23 @@ export const QuizLibraryPage = () => {
                   </h2>
            
                 </div>
-                <div className="flex flex-wrap gap-2 text-xs text-white/80 md:text-sm">
-                  <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5">วิชาที่เลือก: {selectedSubjectName}</span>
-                  <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5">แบบฝึกหัดจากเอกสารทั้งหมด {quizzes.length} ชุด</span>
+                <div className="flex flex-wrap gap-2 text-xs text-muted md:text-sm">
+                  <span className="quiz-hero__chip">วิชาที่เลือก: {selectedSubjectName}</span>
+                  <span className="quiz-hero__chip">แบบฝึกหัดจากเอกสารทั้งหมด {quizzes.length} ชุด</span>
                 </div>
               </div>
               <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
                 <div className="quiz-stat p-3 md:p-4">
-                  <p className="text-xs uppercase tracking-[0.25em] text-white/60">วิชาที่พร้อมใช้</p>
-                  <p className="mt-1.5 text-2xl font-bold">{filteredSubjects.length}</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted">วิชาที่พร้อมใช้</p>
+                  <p className="mt-1.5 text-2xl font-bold text-[color:var(--text)]">{filteredSubjects.length}</p>
                 </div>
                 <div className="quiz-stat p-3 md:p-4">
-                  <p className="text-xs uppercase tracking-[0.25em] text-white/60">เคยทำแล้ว</p>
-                  <p className="mt-1.5 text-2xl font-bold">{attemptedQuizCount}</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted">เคยทำแล้ว</p>
+                  <p className="mt-1.5 text-2xl font-bold text-[color:var(--text)]">{attemptedQuizCount}</p>
                 </div>
                 <div className="quiz-stat p-3 md:p-4">
-                  <p className="text-xs uppercase tracking-[0.25em] text-white/60">คะแนนเฉลี่ย</p>
-                  <p className="mt-1.5 text-2xl font-bold">{averageScore !== null ? `${averageScore}%` : '-'}</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted">คะแนนเฉลี่ย</p>
+                  <p className="mt-1.5 text-2xl font-bold text-[color:var(--text)]">{averageScore !== null ? `${averageScore}%` : '-'}</p>
                 </div>
               </div>
             </div>
@@ -427,19 +428,8 @@ export const QuizLibraryPage = () => {
                         <h3 className="text-2xl font-bold tracking-[-0.03em] text-[color:var(--text)]">ตั้งค่าแบบฝึกหัด</h3>
                         <p className="mt-1 text-sm text-muted">กำหนดรายละเอียดเพื่อให้ AI สร้างคำถามที่ตรงจุด</p>
                       </div>
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[color:var(--border)] bg-[color:rgba(var(--accent-rgb),0.08)] text-accent shadow-sm">
-                        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M19.4 15a1.8 1.8 0 0 0 .35 1.98l.06.06a2 2 0 0 1-1.41 3.41h-.1a1.8 1.8 0 0 0-1.7 1.13l-.04.1a2 2 0 0 1-3.73 0l-.04-.1a1.8 1.8 0 0 0-1.7-1.13h-.1a2 2 0 0 1-1.41-3.41l.06-.06A1.8 1.8 0 0 0 4.6 15l-.1-.04a2 2 0 0 1 0-3.73l.1-.04A1.8 1.8 0 0 0 5 9.2l-.06-.06A2 2 0 0 1 6.35 5.73h.1a1.8 1.8 0 0 0 1.7-1.13l.04-.1a2 2 0 0 1 3.73 0l.04.1a1.8 1.8 0 0 0 1.7 1.13h.1A2 2 0 0 1 19.1 9.14l-.06.06A1.8 1.8 0 0 0 19.4 11l.1.04a2 2 0 0 1 0 3.73l-.1.04Z"
-                          />
-                        </svg>
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[color:var(--border)] bg-[color:rgba(var(--accent-rgb),0.08)] text-accent shadow-sm">
+                        <SlidersHorizontal className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
                       </div>
                     </div>
 
@@ -537,7 +527,7 @@ export const QuizLibraryPage = () => {
                   <div className="quiz-card rounded-[2.25rem] p-4 md:p-6">
                     <div className="h-full rounded-[2rem] border-2 border-dashed p-6 md:p-8" style={{ borderColor: 'rgba(var(--accent-rgb),0.35)', background: 'color-mix(in srgb, var(--surface-2) 88%, rgba(var(--accent-rgb),0.08))' }}>
                       <div className="flex h-full flex-col items-center justify-center text-center">
-                        <div className="flex h-24 w-24 items-center justify-center rounded-[1.75rem] text-emerald-400 shadow-[0_12px_30px_rgba(16,185,129,0.12)]" style={{ background: 'var(--surface)' }}>
+                        <div className="flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-[color:rgba(var(--accent-rgb),0.10)] text-accent shadow-soft md:h-24 md:w-24 md:rounded-[1.75rem]">
                           <svg viewBox="0 0 24 24" className="h-11 w-11" fill="none" stroke="currentColor" strokeWidth={1.8}>
                             <path
                               d="M8 18h8a4 4 0 1 0-.8-7.9 5 5 0 0 0-9.4 1.5A3.5 3.5 0 0 0 8 18Z"
@@ -547,13 +537,13 @@ export const QuizLibraryPage = () => {
                           </svg>
                         </div>
 
-                        <h4 className="mt-7 text-4xl font-black tracking-[-0.03em] text-[color:var(--text)]">อัปโหลดไฟล์</h4>
+                        <h4 className="mt-6 text-3xl font-black tracking-[-0.03em] text-[color:var(--text)] md:mt-7 md:text-4xl">อัปโหลดไฟล์</h4>
                         <p className="mt-3 max-w-sm text-base text-muted">
                           ลากไฟล์มาวาง หรือ{' '}
                           <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
-                            className="font-semibold text-emerald-600 underline decoration-emerald-500/60 underline-offset-2"
+                            className="font-semibold text-accent underline decoration-[color:rgba(var(--accent-rgb),0.5)] underline-offset-2"
                           >
                             คลิกเพื่อเลือก
                           </button>
@@ -565,14 +555,10 @@ export const QuizLibraryPage = () => {
                           <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
-                            className="inline-flex items-center justify-center rounded-[1.1rem] px-14 py-3.5 text-xl font-bold text-white shadow-[0_16px_30px_rgba(var(--accent-rgb),0.30)] transition hover:-translate-y-0.5 hover:opacity-95"
+                            className="inline-flex w-full max-w-xs items-center justify-center rounded-[1.1rem] px-8 py-3.5 text-lg font-bold text-[color:var(--on-accent)] shadow-[0_16px_30px_rgba(var(--accent-rgb),0.24)] transition hover:-translate-y-0.5 hover:opacity-95 sm:w-auto sm:px-14 sm:text-xl"
                             style={{
-                              background:
-                                'linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, white) 0%, color-mix(in srgb, var(--accent) 82%, black) 100%)',
-                              border: '1px solid color-mix(in srgb, var(--accent) 46%, white)',
-                              color: '#ffffff',
-                              WebkitTextFillColor: '#ffffff',
-                              textShadow: '0 1px 2px rgba(0,0,0,0.35)'
+                              background: 'var(--accent)',
+                              border: '1px solid color-mix(in srgb, var(--accent) 70%, var(--border))'
                             }}
                           >
                             เลือกไฟล์
@@ -611,7 +597,7 @@ export const QuizLibraryPage = () => {
                 <button
                   type="submit"
                   disabled={isFileSubmitting}
-                  className="inline-flex w-full items-center justify-center gap-3 rounded-[2rem] bg-[color:var(--accent)] px-8 py-4 text-base font-semibold text-[color:var(--on-accent)] shadow-[0_18px_40px_rgba(var(--accent-rgb),0.22)] transition hover:-translate-y-0.5 hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-70"
+                  className="mb-2 inline-flex w-full items-center justify-center gap-3 rounded-[1.5rem] bg-[color:var(--accent)] px-8 py-4 text-base font-semibold text-[color:var(--on-accent)] shadow-[0_18px_40px_rgba(var(--accent-rgb),0.22)] transition hover:-translate-y-0.5 hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-70 sm:mb-0"
                 >
                   <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path d="M12 2l1.6 6.2L20 10l-6.4 1.8L12 18l-1.6-6.2L4 10l6.4-1.8L12 2Z" strokeLinejoin="round" />

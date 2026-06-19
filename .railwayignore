@@ -1,0 +1,18 @@
+# Keep the Railway upload small — only ship backend source
+.git/
+node_modules/
+frontend/
+vendor/
+Mail/
+uploads/
+docs/
+deploy/
+public/storage/
+public/app/
+public/uploads/
+public/img/
+storage/app/public/
+storage/logs/
+*.log
+legacy_api_error.log
+db_651998018 (9).sql

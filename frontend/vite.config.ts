@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   const apiTarget = env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8000';
   const legacyTarget = env.VITE_LEGACY_PROXY_TARGET;
   const base = env.VITE_BASE || './';
+  const hmrHost = env.VITE_HMR_HOST?.trim();
 
   const proxy: Record<string, { target: string; changeOrigin: boolean; secure: boolean; rewrite?: (path: string) => string }> = {
     '/api': {
@@ -36,7 +37,9 @@ export default defineConfig(({ mode }) => {
       host: true,
       // allow access through the cloudflared quick tunnel
       allowedHosts: ['.trycloudflare.com'],
-      hmr: { protocol: 'wss', clientPort: 443 },
+      hmr: hmrHost
+        ? { protocol: 'wss', host: hmrHost, clientPort: 443 }
+        : undefined,
       headers: {
         'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
       },

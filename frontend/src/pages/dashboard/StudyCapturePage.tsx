@@ -367,7 +367,7 @@ export const StudyCapturePage = () => {
 
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-sky-600">Study Log</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-[color:var(--accent-ink)]">Study Log</p>
             <h1 className="mt-1.5 text-[1.8rem] font-bold leading-tight text-[color:var(--text)]">บันทึกการเรียน</h1>
             <p className="mt-2 max-w-lg text-sm leading-6 text-[color:var(--muted)]">จดสิ่งที่เรียนในวันนี้แบบสั้น กระชับ และกลับมาทบทวนได้ง่าย</p>
           </div>
@@ -382,7 +382,7 @@ export const StudyCapturePage = () => {
               <h2 className="text-base font-bold text-[color:var(--text)]">เพิ่มบันทึกใหม่</h2>
               <p className="mt-1 text-xs text-[color:var(--muted)]">ระบุวิชา หัวข้อ และสรุปสิ่งที่เข้าใจในวันนี้</p>
             </div>
-            <span className="rounded-full border px-3 py-1.5 text-[10px] font-bold" style={{ borderColor: 'rgba(var(--accent-rgb),0.24)', background: 'rgba(var(--accent-rgb),0.12)', color: 'var(--accent)' }}>วันนี้</span>
+            <span className="rounded-full border px-3 py-1.5 text-[10px] font-bold" style={{ borderColor: 'rgba(var(--accent-rgb),0.24)', background: 'rgba(var(--accent-rgb),0.12)', color: 'var(--accent-ink)' }}>วันนี้</span>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-5 space-y-4">
@@ -519,14 +519,15 @@ export const StudyCapturePage = () => {
             </div>
 
             <div>
-              <label className="mb-2 block text-xs font-bold text-slate-700">แนบไฟล์เพิ่มเติมเข้าคลัง</label>
+              <label className="mb-2 block text-xs font-bold text-[color:var(--text)]">แนบไฟล์เพิ่มเติมเข้าคลัง</label>
               <label
                 htmlFor="study-capture-files"
-                className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 transition hover:border-[rgba(var(--accent-rgb),0.4)] hover:bg-white hover:text-[color:var(--accent)]"
+                className="flex cursor-pointer flex-wrap items-center justify-center gap-2 rounded-2xl border border-dashed px-4 py-3 text-sm font-bold text-[color:var(--text)] transition hover:border-[rgba(var(--accent-rgb),0.45)] hover:text-[color:var(--accent)]"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
               >
                 <Paperclip size={16} />
                 แนบไฟล์
-                <span className="text-[11px] font-medium text-slate-500">รองรับรูปภาพ, PDF, เสียง, DOCX, TXT</span>
+                <span className="text-[11px] font-medium text-[color:var(--muted)]">รองรับรูปภาพ, PDF, เสียง, DOCX, TXT</span>
               </label>
               <input
                 ref={fileInputRef}
@@ -542,11 +543,12 @@ export const StudyCapturePage = () => {
                   {selectedFiles.map(file => (
                     <div
                       key={`${file.name}-${file.lastModified}-${file.size}`}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm"
+                      className="flex items-center justify-between gap-3 rounded-2xl border px-3 py-2.5 text-sm text-[color:var(--text)] shadow-sm"
+                      style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
                     >
                       <div className="min-w-0">
                         <p className="truncate font-semibold">{file.name}</p>
-                        <p className="text-[11px] text-slate-500">{Math.max(1, Math.round(file.size / 1024))} KB</p>
+                        <p className="text-[11px] text-[color:var(--muted)]">{Math.max(1, Math.round(file.size / 1024))} KB</p>
                       </div>
                       <button
                         type="button"
@@ -575,8 +577,8 @@ export const StudyCapturePage = () => {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(var(--accent-rgb),0.28)] transition disabled:opacity-60"
-              style={{ background: 'rgb(var(--accent-rgb))' }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold shadow-[0_14px_28px_rgba(var(--accent-rgb),0.28)] transition hover:brightness-105 disabled:opacity-60"
+              style={{ background: 'rgb(var(--accent-rgb))', color: 'var(--on-accent)', WebkitTextFillColor: 'var(--on-accent)' }}
             >
               {saving ? <LoaderCircle size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
               {saving ? 'กำลังบันทึก...' : 'บันทึกการเรียน'}
@@ -595,15 +597,17 @@ export const StudyCapturePage = () => {
 
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div
-              className="flex min-h-[100px] flex-col justify-end rounded-[1.4rem] p-4 text-white shadow-[0_14px_24px_rgba(var(--accent-rgb),0.20)]"
+              className="flex min-h-[100px] flex-col justify-end rounded-[1.4rem] p-4 shadow-[0_14px_24px_rgba(var(--accent-rgb),0.20)]"
               style={{
-                background: 'linear-gradient(180deg, rgba(var(--accent-rgb),0.82) 0%, rgb(var(--accent-rgb)) 100%)'
+                background: 'linear-gradient(145deg, rgba(var(--accent-rgb),0.88) 0%, rgb(var(--accent-rgb)) 100%)',
+                color: 'var(--on-accent)',
+                WebkitTextFillColor: 'var(--on-accent)'
               }}
             >
               <span className="text-3xl font-bold leading-none">
                 {Math.round((todayLogs.reduce((sum, log) => sum + Number(log.duration_minutes ?? 0), 0) / 60) * 10) / 10}
               </span>
-              <span className="mt-1 text-xs text-white/80">ชั่วโมงวันนี้</span>
+              <span className="mt-1 text-xs opacity-85">ชั่วโมงวันนี้</span>
             </div>
             <div
               className="rounded-[1.4rem] border p-4"
@@ -616,21 +620,22 @@ export const StudyCapturePage = () => {
                 <Calendar size={14} />
                 <span className="text-[11px] font-bold">วันที่บันทึก</span>
               </div>
-              <span className="text-lg font-bold text-slate-800">{formatThaiDate(today)}</span>
-              <p className="mt-1 text-[10px] text-slate-500">อัปเดตล่าสุด</p>
+              <span className="text-lg font-bold text-[color:var(--text)]">{formatThaiDate(today)}</span>
+              <p className="mt-1 text-[10px] text-[color:var(--muted)]">อัปเดตล่าสุด</p>
             </div>
           </div>
 
           <div className="mt-4 space-y-3">
             {loading ? (
-              <div className="rounded-xl bg-slate-50 px-4 py-4 text-sm text-slate-500">กำลังโหลดข้อมูล...</div>
+              <div className="rounded-xl px-4 py-4 text-sm text-[color:var(--muted)]" style={{ background: 'var(--surface-2)' }}>กำลังโหลดข้อมูล...</div>
             ) : todayLogs.length > 0 ? (
               todayLogs.map(log => (
                 <button
                   key={`${log.subjectName}-${log.id}`}
                   type="button"
                   onClick={() => navigate(`/subjects/${log.subjectId}`, { state: { selectedLogId: log.id } })}
-                  className="w-full rounded-[1.35rem] border border-slate-100 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] px-4 py-4 text-left shadow-[0_8px_22px_rgba(148,163,184,0.08)] transition hover:-translate-y-0.5 hover:border-[color:var(--accent)]/30 hover:shadow-[0_14px_28px_rgba(148,163,184,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/35"
+                  className="w-full rounded-[1.35rem] border px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[color:var(--accent)]/30 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/35"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -638,14 +643,14 @@ export const StudyCapturePage = () => {
                         <BookOpen size={12} />
                         {log.subjectName}
                       </p>
-                      <h3 className="mt-1 text-sm font-bold text-slate-800">{log.title}</h3>
+                      <h3 className="mt-1 text-sm font-bold text-[color:var(--text)]">{log.title}</h3>
                     </div>
-                    <span className="shrink-0 text-xs font-semibold text-slate-500">{Number(log.duration_minutes ?? 0)} นาที</span>
+                    <span className="shrink-0 text-xs font-semibold text-[color:var(--muted)]">{Number(log.duration_minutes ?? 0)} นาที</span>
                   </div>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{log.note || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
-                  <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-500">
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[color:var(--muted)]">{log.note || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
+                  <div className="mt-3 flex items-center justify-between gap-2 text-xs text-[color:var(--muted)]">
                     <span>{formatThaiDate(log.log_date)}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1">{log.mood || 'ไม่ระบุความรู้สึก'}</span>
+                    <span className="rounded-full px-2 py-1" style={{ background: 'var(--surface-2)' }}>{log.mood || 'ไม่ระบุความรู้สึก'}</span>
                   </div>
                 </button>
               ))

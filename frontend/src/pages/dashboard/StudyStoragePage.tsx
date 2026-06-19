@@ -66,13 +66,10 @@ const formatThaiDateTime = (value?: string | null) => {
 };
 
 const getSubjectTone = (index: number, active: boolean) => {
-  const tones = [
-    active ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-100 hover:bg-slate-50',
-    active ? 'bg-pink-50 border-pink-200 shadow-sm' : 'bg-white border-slate-100 hover:bg-slate-50',
-    active ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'bg-white border-slate-100 hover:bg-slate-50',
-    active ? 'bg-orange-50 border-orange-200 shadow-sm' : 'bg-white border-slate-100 hover:bg-slate-50',
-  ];
-  return tones[index % tones.length];
+  void index;
+  return active
+    ? 'border-[color:var(--accent)] bg-[color:rgba(var(--accent-rgb),0.08)] shadow-sm'
+    : 'border-[color:var(--border)] bg-[color:var(--surface)] hover:bg-[color:var(--surface-2)]';
 };
 
 const getFolderTone = (index: number) => {
@@ -295,7 +292,7 @@ export const StudyStoragePage = () => {
   const progressWidth = Math.min((totalUsage / (1024 * 1024 * 1024)) * 100, 100);
 
   return (
-    <div className="space-y-5 bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8fc_100%)] pb-1 text-[color:var(--text)]">
+    <div className="space-y-5 bg-[color:var(--bg)] pb-1 text-[color:var(--text)]">
       {preview ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-2 backdrop-blur-sm sm:p-4">
           <div className="flex h-[78vh] w-full max-w-6xl flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.28)] sm:h-[80vh] sm:rounded-[1.75rem]">
@@ -369,7 +366,7 @@ export const StudyStoragePage = () => {
         </div>
       ) : null}
 
-      <section className="rounded-b-[2.15rem] border-b border-slate-100/80 bg-white px-5 pb-7 pt-2 shadow-[0_12px_32px_rgba(148,163,184,0.08)] sm:px-6">
+      <section className="rounded-b-[2.15rem] border-b px-5 pb-7 pt-2 shadow-soft sm:px-6" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
         <button
           type="button"
           onClick={() => navigate('/ai-assistant')}
@@ -383,11 +380,11 @@ export const StudyStoragePage = () => {
 
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-indigo-600">My Storage</p>
-            <h1 className="mt-1.5 text-[1.8rem] font-bold leading-tight text-slate-800">กระเป๋าเก็บไฟล์</h1>
-            <p className="mt-2 max-w-lg text-sm leading-6 text-slate-500">จัดการไฟล์แนบทั้งหมดของคุณที่เชื่อมโยงกับบันทึกการเรียน</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-[color:var(--accent-ink)]">My Storage</p>
+            <h1 className="mt-1.5 text-[1.8rem] font-bold leading-tight text-[color:var(--text)]">กระเป๋าเก็บไฟล์</h1>
+            <p className="mt-2 max-w-lg text-sm leading-6 text-[color:var(--muted)]">จัดการไฟล์แนบทั้งหมดของคุณที่เชื่อมโยงกับบันทึกการเรียน</p>
           </div>
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 shadow-[0_8px_18px_rgba(199,210,254,0.45)] ring-1 ring-indigo-100">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[color:rgba(var(--accent-rgb),0.10)] text-[color:var(--accent-ink)] shadow-soft ring-1 ring-[color:rgba(var(--accent-rgb),0.16)]">
             <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
               <path d="M10 12h4" />
@@ -397,9 +394,9 @@ export const StudyStoragePage = () => {
       </section>
 
       <div className="space-y-6 px-5 pb-8 sm:px-6">
-        <section className="rounded-[1.75rem] border border-white/90 bg-white/95 p-5 shadow-[0_10px_26px_rgba(148,163,184,0.10)] backdrop-blur">
+        <section className="rounded-[1.75rem] border p-5 shadow-soft backdrop-blur" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[color:rgba(var(--accent-rgb),0.10)] text-[color:var(--accent-ink)]">
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="3" y="4" width="18" height="14" rx="2" />
                 <path d="M7 20h10" />
@@ -408,26 +405,23 @@ export const StudyStoragePage = () => {
               </svg>
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-800">พื้นที่เก็บข้อมูล</h2>
-              <p className="text-[11px] text-slate-500">จำกัดสูงสุด 1 GB ต่อบัญชี</p>
+              <h2 className="text-sm font-bold text-[color:var(--text)]">พื้นที่เก็บข้อมูล</h2>
+              <p className="text-[11px] text-[color:var(--muted)]">จำกัดสูงสุด 1 GB ต่อบัญชี</p>
             </div>
           </div>
 
           <div className="mt-4 flex items-end justify-between gap-3">
-            <span className="text-xs font-bold text-indigo-600">ใช้ไป {formatFileSize(totalUsage)}</span>
-            <span className="text-[10px] font-medium text-slate-400">1 GB</span>
+            <span className="text-xs font-bold text-[color:var(--accent-ink)]">ใช้ไป {formatFileSize(totalUsage)}</span>
+            <span className="text-[10px] font-medium text-[color:var(--muted)]">1 GB</span>
           </div>
           <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
-              style={{ width: `${progressWidth}%` }}
-            />
+            <div className="h-full rounded-full bg-[color:var(--accent)]" style={{ width: `${progressWidth}%` }} />
           </div>
         </section>
 
         <section>
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-base font-bold text-slate-800">แฟ้มรายวิชา</h2>
+            <h2 className="text-base font-bold text-[color:var(--text)]">แฟ้มรายวิชา</h2>
             {activeSubjectId !== 'all' ? (
               <button
                 type="button"
@@ -449,13 +443,16 @@ export const StudyStoragePage = () => {
                   onClick={() => setActiveSubjectId(subject.id)}
                   className={`rounded-2xl border p-4 text-left transition-all ${getSubjectTone(index, active)}`}
                 >
-                  <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${getFolderTone(index)}`}>
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <div
+                    className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${active ? '' : getFolderTone(index)}`}
+                    style={active ? { background: 'var(--accent)', color: 'var(--on-accent)' } : undefined}
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
                     </svg>
                   </div>
-                  <h3 className="text-xs font-bold text-slate-800">{subject.name}</h3>
-                  <p className="mt-0.5 text-[10px] text-slate-500">
+                  <h3 className="text-xs font-bold text-[color:var(--text)]">{subject.name}</h3>
+                  <p className="mt-0.5 text-[10px] text-[color:var(--muted)]">
                     {subject.count > 0 ? `${subject.count} ไฟล์ • ${formatFileSize(subject.size)}` : 'ว่างเปล่า'}
                   </p>
                 </button>
@@ -465,13 +462,13 @@ export const StudyStoragePage = () => {
         </section>
 
         <section>
-          <h2 className="mb-4 text-base font-bold text-slate-800">
+          <h2 className="mb-4 text-base font-bold text-[color:var(--text)]">
             {activeSubjectId === 'all'
               ? 'ไฟล์ในคลังทั้งหมด'
               : `ไฟล์ในวิชา${subjectSummaries.find(subject => subject.id === activeSubjectId)?.name ?? ''}`}
           </h2>
 
-          <div className="mb-4 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
+          <div className="mb-4 rounded-2xl border p-3 shadow-sm" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <svg viewBox="0 0 24 24" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2">
@@ -482,7 +479,8 @@ export const StudyStoragePage = () => {
                   value={searchText}
                   onChange={event => setSearchText(event.target.value)}
                   placeholder="ค้นหาชื่อไฟล์..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none transition focus:border-indigo-300 focus:bg-white"
+                  className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm text-[color:var(--text)] outline-none transition focus:border-[color:var(--accent)]"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
                 />
               </div>
               <button
@@ -492,7 +490,8 @@ export const StudyStoragePage = () => {
                   setFileTypeFilter('all');
                   setSortBy('latest');
                 }}
-                className="rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-600 transition hover:bg-indigo-100"
+                className="rounded-xl px-3 py-2 text-xs font-bold text-[color:var(--accent-ink)] transition hover:brightness-95"
+                style={{ background: 'rgba(var(--accent-rgb),0.10)' }}
               >
                 รีเซ็ต
               </button>
@@ -514,9 +513,10 @@ export const StudyStoragePage = () => {
                     onClick={() => setFileTypeFilter(option.value)}
                     className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                       active
-                        ? 'border-[color:var(--accent)] bg-[color:var(--accent)] text-white shadow-[0_6px_16px_rgba(var(--accent-rgb),0.35)]'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        ? 'border-[color:var(--accent)] bg-[color:var(--accent)] shadow-[0_6px_16px_rgba(var(--accent-rgb),0.35)]'
+                        : 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--muted)] hover:bg-[color:var(--surface-2)]'
                     }`}
+                    style={active ? { color: 'var(--on-accent)', WebkitTextFillColor: 'var(--on-accent)' } : undefined}
                   >
                     {option.label}
                   </button>
@@ -525,11 +525,12 @@ export const StudyStoragePage = () => {
             </div>
 
             <div className="mt-3">
-              <label className="mb-1 block text-xs font-semibold text-slate-500">จัดเรียงตาม</label>
+              <label className="mb-1 block text-xs font-semibold text-[color:var(--muted)]">จัดเรียงตาม</label>
               <select
                 value={sortBy}
                 onChange={event => setSortBy(event.target.value as 'latest' | 'oldest' | 'name_asc' | 'size_desc' | 'size_asc')}
-                className="w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-indigo-300"
+                className="w-full max-w-xs rounded-xl border px-3 py-2 text-sm text-[color:var(--text)] outline-none transition focus:border-[color:var(--accent)]"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
               >
                 <option value="latest">ใหม่ล่าสุด</option>
                 <option value="oldest">เก่าสุด</option>
@@ -541,7 +542,7 @@ export const StudyStoragePage = () => {
           </div>
 
           {loading ? (
-            <div className="rounded-2xl border border-slate-100 bg-white p-5 text-sm text-slate-500 shadow-sm">
+            <div className="rounded-2xl border p-5 text-sm text-[color:var(--muted)] shadow-sm" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
               กำลังโหลดไฟล์...
             </div>
           ) : visibleFiles.length > 0 ? (
@@ -549,7 +550,8 @@ export const StudyStoragePage = () => {
               {visibleFiles.map(file => (
                 <div
                   key={file.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm"
+                  className="flex items-center justify-between gap-3 rounded-2xl border p-3 shadow-sm"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
                 >
                   <button
                     type="button"
@@ -560,11 +562,11 @@ export const StudyStoragePage = () => {
                       <FileTypeIcon type={file.file_type} />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="truncate text-xs font-bold text-slate-800">{file.original_name}</h3>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
+                      <h3 className="truncate text-xs font-bold text-[color:var(--text)]">{file.original_name}</h3>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-[color:var(--muted)]">
                         <span>{formatThaiDateTime(file.created_at)}</span>
                         <span className="h-1 w-1 rounded-full bg-slate-300" />
-                        <span className="font-medium text-slate-500">{formatFileSize(file.file_size)}</span>
+                        <span className="font-medium text-[color:var(--muted)]">{formatFileSize(file.file_size)}</span>
                         <span className="h-1 w-1 rounded-full bg-slate-300" />
                         <span>{file.subjectName}</span>
                       </div>
@@ -590,11 +592,11 @@ export const StudyStoragePage = () => {
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
               <svg viewBox="0 0 24 24" className="mb-2 h-8 w-8 text-slate-300" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
               </svg>
-              <p className="text-xs font-medium text-slate-500">ไม่พบไฟล์ตามเงื่อนไขที่เลือก</p>
+              <p className="text-xs font-medium text-[color:var(--muted)]">ไม่พบไฟล์ตามเงื่อนไขที่เลือก</p>
             </div>
           )}
         </section>

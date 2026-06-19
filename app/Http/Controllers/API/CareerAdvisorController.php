@@ -47,16 +47,17 @@ class CareerAdvisorController extends Controller
         }
 
         $topSubjects = $this->topSubjects($user->id);
+        if ($topSubjects->isEmpty()) {
+            CareerRecommendation::query()->where('user_id', $user->id)->delete();
+            return response()->json([]);
+        }
+
         $defaultSubjectsText = collect($topSubjects)
             ->pluck('subject_name')
             ->filter(fn ($name) => is_string($name) && trim($name) !== '')
             ->take(6)
             ->map(fn ($name) => trim((string) $name))
             ->implode(', ');
-
-        if ($defaultSubjectsText === '') {
-            $defaultSubjectsText = 'รายวิชาพื้นฐานในแผนการเรียน';
-        }
 
         $items = CareerRecommendation::query()
             ->with('careerPath')
@@ -79,25 +80,15 @@ class CareerAdvisorController extends Controller
         $latestQuizAnalysis = $this->latestQuizAnalysis($user->id);
 
         $subjectProfiles = $this->buildSubjectProfiles($topSubjects);
-        if ($subjectProfiles === [] && $latestQuiz) {
-            $subjectProfiles = [[
-                'id' => 0,
-                'name' => (string) ($latestQuiz['subject_name'] ?? 'วิชาที่ทำแบบฝึกหัดล่าสุด'),
-                'summary_count' => 0,
-                'study_hours' => 0,
-                'study_log_count' => 0,
-                'quiz_attempt_count' => 1,
-                'avg_quiz_score' => (float) ($latestQuiz['percentage'] ?? 0),
-                'latest_quiz_score' => (float) ($latestQuiz['percentage'] ?? 0),
-                'summary_excerpt' => null,
-            ]];
-        }
 
         if ($subjectProfiles === []) {
+            if (Schema::hasTable('career_recommendations')) {
+                CareerRecommendation::query()->where('user_id', $user->id)->delete();
+            }
             return response()->json([
                 'top_subjects' => [],
                 'recommendations' => [],
-                'message' => 'ยังไม่มีข้อมูลการเรียนเพื่อใช้วิเคราะห์อาชีพ',
+                'message' => 'ยังไม่มีผลแบบฝึกหัดเพียงพอสำหรับวิเคราะห์อาชีพ',
             ]);
         }
 
@@ -140,26 +131,23 @@ class CareerAdvisorController extends Controller
 
         $ranked = $stats
             ->filter(function (array $row) {
-                return ($row['summary_count'] ?? 0) > 0
-                    || ($row['study_log_count'] ?? 0) > 0
-                    || ($row['total_minutes'] ?? 0) > 0
-                    || ($row['quiz_attempt_count'] ?? 0) > 0;
+                return ($row['quiz_attempt_count'] ?? 0) > 0;
             })
             ->map(function (array $row) use ($highestLatestQuizScore) {
-                $summaryCount = (int) ($row['summary_count'] ?? 0);
                 $minutes = (int) ($row['total_minutes'] ?? 0);
                 $studyHours = $minutes > 0 ? $minutes / 60 : 0.0;
                 $latestQuiz = (float) ($row['latest_quiz_score'] ?? 0);
+                $avgQuiz = (float) ($row['avg_quiz_score'] ?? 0);
                 $attempts = (int) ($row['quiz_attempt_count'] ?? 0);
+                $passedCount = (int) ($row['passed_count'] ?? 0);
+                $passRate = $attempts > 0 ? $passedCount / $attempts : 0;
                 $isLatestTop = $latestQuiz > 0 && $highestLatestQuizScore > 0 && abs($latestQuiz - $highestLatestQuizScore) < 0.001;
 
-                // score: เน้น "วิชาที่สรุปบ่อย" + "ผลข้อสอบ" เป็นหลัก
-                $score = ($summaryCount * 1.15)
-                    + ($studyHours * 0.2)
-                    + (($latestQuiz / 100) * 4.0)
-                    + ((((float) ($row['avg_quiz_score'] ?? 0)) / 100) * 2.2)
-                    + min(1.4, $attempts * 0.15)
-                    + ($isLatestTop ? 0.8 : 0);
+                // Career evidence must come from actual quiz performance.
+                $score = ($avgQuiz * 0.55)
+                    + ($latestQuiz * 0.25)
+                    + ($passRate * 15)
+                    + min(5, $attempts);
                 $row['strength_score'] = round($score, 3);
                 $row['is_latest_top_score'] = $isLatestTop;
 
@@ -309,8 +297,8 @@ class CareerAdvisorController extends Controller
                 ->where('quiz_attempts.user_id', $userId)
                 ->selectRaw('quizzes.subject_id as subject_id')
                 ->selectRaw('COUNT(*) as quiz_attempt_count')
-                ->selectRaw('AVG(quiz_attempts.score) as avg_quiz_score')
-                ->selectRaw('MAX(quiz_attempts.score) as max_quiz_score')
+                ->selectRaw('AVG(CASE WHEN JSON_LENGTH(quiz_attempts.answers) > 0 THEN (quiz_attempts.score / JSON_LENGTH(quiz_attempts.answers)) * 100 ELSE 0 END) as avg_quiz_score')
+                ->selectRaw('MAX(CASE WHEN JSON_LENGTH(quiz_attempts.answers) > 0 THEN (quiz_attempts.score / JSON_LENGTH(quiz_attempts.answers)) * 100 ELSE 0 END) as max_quiz_score')
                 ->selectRaw('SUM(CASE WHEN quiz_attempts.passed = 1 THEN 1 ELSE 0 END) as passed_count')
                 ->groupBy('quizzes.subject_id')
             : null;
@@ -327,7 +315,8 @@ class CareerAdvisorController extends Controller
             ? DB::query()
                 ->fromSub($latestQuizIdsAgg, 'lqid')
                 ->join('quiz_attempts', 'quiz_attempts.id', '=', 'lqid.latest_attempt_id')
-                ->selectRaw('lqid.subject_id as subject_id, quiz_attempts.score as latest_quiz_score')
+                ->selectRaw('lqid.subject_id as subject_id')
+                ->selectRaw('CASE WHEN JSON_LENGTH(quiz_attempts.answers) > 0 THEN (quiz_attempts.score / JSON_LENGTH(quiz_attempts.answers)) * 100 ELSE 0 END as latest_quiz_score')
             : null;
 
         $query = DB::table('subjects')
@@ -541,6 +530,8 @@ class CareerAdvisorController extends Controller
         $hasCareerColumn = in_array('career', $columns, true);
         $hasCareerPathId = in_array('career_path_id', $columns, true);
         $hasCareerPathsTable = Schema::hasTable('career_paths');
+
+        CareerRecommendation::query()->where('user_id', $user->id)->delete();
 
         $subjectNameMap = collect($topSubjects)
             ->filter(fn (array $subject) => ! empty($subject['subject_name']))

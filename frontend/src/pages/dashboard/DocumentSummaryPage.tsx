@@ -637,6 +637,8 @@ export const DocumentSummaryPage = () => {
   const activeSummaryText = summary || savedSummary?.content || '';
   const activeSummaryTitle = savedSummary?.title ?? 'ผลลัพธ์การสรุป';
   const hasResultContent = activeSummaryText.trim() !== '';
+  const savedCountLabel = savedSummaries.length > 99 ? '99+' : String(savedSummaries.length);
+  const archiveCountLabel = filteredArchivedSummaries.length > 99 ? '99+' : String(filteredArchivedSummaries.length);
 
   useEffect(() => {
     setSelectedArchiveIds([]);
@@ -1259,15 +1261,9 @@ export const DocumentSummaryPage = () => {
 
   return (
     <div
-      className="doc-summary-page relative min-h-screen overflow-hidden bg-transparent font-sans pb-16"
+      className="doc-summary-page relative min-h-screen overflow-hidden bg-transparent font-sans pb-[7.5rem] md:pb-16"
       style={{ ['--doc-accent-soft' as string]: 'rgba(var(--accent-rgb),0.10)' }}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] overflow-hidden">
-        <div className="absolute -left-20 top-8 h-56 w-56 rounded-full blur-3xl" style={{ background: 'rgba(var(--accent-rgb),0.16)' }} />
-        <div className="absolute right-0 top-0 h-72 w-72 rounded-full blur-3xl" style={{ background: 'rgba(var(--accent-rgb),0.12)' }} />
-        <div className="absolute left-1/3 top-24 h-40 w-64 rounded-full blur-3xl" style={{ background: 'rgba(var(--accent-rgb),0.10)' }} />
-      </div>
-      
       {/* Print View */}
       <div className="hidden print:block text-slate-900 bg-white">
         <h1 className="text-xl font-semibold">สรุปเอกสาร</h1>
@@ -1277,34 +1273,163 @@ export const DocumentSummaryPage = () => {
         </pre>
       </div>
 
-      <div className="max-w-7xl mx-auto px-0 pb-4 pt-2 md:p-8 relative z-10 space-y-8 print:hidden">
+      <div className="max-w-7xl mx-auto px-4 pb-4 pt-2 md:p-8 relative z-10 space-y-8 print:hidden">
+        <style>{`
+          .doc-summary-page::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+              linear-gradient(135deg, rgba(var(--accent-rgb), 0.10), transparent 36%),
+              linear-gradient(90deg, transparent 0%, rgba(34, 197, 94, 0.07) 58%, transparent 100%),
+              linear-gradient(180deg, rgba(255,255,255,0.34), transparent 34%);
+          }
+          .doc-summary-header,
+          .doc-summary-card {
+            background:
+              linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,255,255,0.70)),
+              var(--surface) !important;
+            border: 1px solid rgba(148, 163, 184, 0.22) !important;
+            box-shadow: 0 24px 58px rgba(15, 23, 42, 0.10) !important;
+            backdrop-filter: blur(24px);
+          }
+          .dark .doc-summary-header,
+          .dark .doc-summary-card {
+            background:
+              linear-gradient(145deg, rgba(15,23,42,0.78), rgba(15,23,42,0.54)),
+              var(--surface) !important;
+            border-color: rgba(255,255,255,0.10) !important;
+            box-shadow: 0 24px 58px rgba(0,0,0,0.28) !important;
+          }
+          .doc-summary-card {
+            border-radius: 26px;
+          }
+          .doc-summary-header {
+            border-radius: 30px;
+            padding: 22px;
+          }
+          .doc-upload-zone {
+            min-height: 260px;
+            background:
+              linear-gradient(145deg, rgba(var(--accent-rgb),0.08), rgba(255,255,255,0.58)) !important;
+            border-color: rgba(var(--accent-rgb),0.24) !important;
+          }
+          .dark .doc-upload-zone {
+            background:
+              linear-gradient(145deg, rgba(var(--accent-rgb),0.16), rgba(15,23,42,0.46)) !important;
+          }
+          .doc-upload-zone:hover {
+            transform: translateY(-2px);
+            border-color: rgba(var(--accent-rgb),0.58) !important;
+            box-shadow: 0 18px 44px rgba(var(--accent-rgb),0.14);
+          }
+          .doc-input-toggle button,
+          .doc-save-period-tabs button,
+          .doc-history-tabs button,
+          .doc-toolbar-btn {
+            min-height: 38px;
+          }
+          .doc-primary-action,
+          .doc-toolbar-btn-primary,
+          .doc-upload-select-btn {
+            color: #fff !important;
+          }
+          .doc-result-panel {
+            background:
+              linear-gradient(180deg, rgba(255,255,255,0.80), rgba(248,250,252,0.74)) !important;
+          }
+          .dark .doc-result-panel {
+            background:
+              linear-gradient(180deg, rgba(15,23,42,0.58), rgba(2,6,23,0.38)) !important;
+          }
+          .doc-empty-state {
+            border-style: dashed;
+            border-color: rgba(148,163,184,0.24) !important;
+          }
+          .doc-summary-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.70);
+            border: 1px solid rgba(148,163,184,0.22);
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 700;
+          }
+          .dark .doc-summary-chip {
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(255,255,255,0.10);
+          }
+          @media (max-width: 640px) {
+            .doc-summary-header {
+              padding: 18px;
+              border-radius: 24px;
+            }
+            .doc-summary-card {
+              border-radius: 22px;
+              padding: 18px !important;
+            }
+            .doc-upload-zone {
+              min-height: 220px;
+              padding: 24px 16px !important;
+            }
+            .doc-history-tabs,
+            .doc-save-period-tabs {
+              width: 100%;
+            }
+            .doc-history-tabs button,
+            .doc-save-period-tabs button {
+              flex: 1 0 auto;
+            }
+            .doc-toolbar-btn {
+              flex: 1 1 calc(50% - 8px);
+              justify-content: center;
+            }
+          }
+        `}</style>
         
         {/* Header */}
-        <header className="doc-summary-header mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center space-x-3">
-          <div
-            className="doc-summary-header-icon rounded-2xl p-3 shadow-lg"
-            style={{
-              background: 'linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 74%, white))',
-              boxShadow: '0 16px 34px rgba(var(--accent-rgb),0.28)'
-            }}
-          >
-            <span className="text-xl leading-none">✨</span>
-          </div>
-          <div>
-            <span
-              className="mb-2 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em]"
+        <header className="doc-summary-header mb-8 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-4">
+            <div
+              className="doc-summary-header-icon flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-lg"
               style={{
-                background: 'rgba(var(--accent-rgb),0.10)',
-                border: '1px solid rgba(var(--accent-rgb),0.16)',
-                color: 'var(--accent)'
+                background: 'linear-gradient(135deg, var(--accent), rgba(var(--accent-rgb),0.72))',
+                boxShadow: '0 18px 38px rgba(var(--accent-rgb),0.30)'
               }}
             >
-              Smart Summary
-            </span>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-wide">ให้ AI ช่วยสรุปเนื้อหาวิชา</h1>
-        
+              <svg viewBox="0 0 24 24" className="h-7 w-7 text-white" fill="none">
+                <path d="M6.7 3.8h7.2l3.4 3.5v12.9H6.7V3.8Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                <path d="M13.7 3.9v3.7h3.6M9 11h6M9 14.5h6M9 18h3.4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div>
+              <span
+                className="mb-2 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]"
+                style={{
+                  background: 'rgba(var(--accent-rgb),0.12)',
+                  border: '1px solid rgba(var(--accent-rgb),0.22)',
+                  color: 'var(--accent)'
+                }}
+              >
+                Smart Summary
+              </span>
+              <h1 className="text-2xl font-bold tracking-wide text-[color:var(--text)] md:text-3xl">สรุปเนื้อหาด้วย AI</h1>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
+                อัปโหลดเอกสารหรือเสียง แล้วจัดเก็บสรุปแยกตามวิชาและช่วงเวลา
+              </p>
+            </div>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="doc-summary-chip">
+              <span className="h-2 w-2 rounded-full" style={{ background: 'var(--accent)' }} />
+              {selectedSubjectName ?? 'ยังไม่เลือกวิชา'}
+            </span>
+            <span className="doc-summary-chip">{savedCountLabel} สรุป</span>
+            <span className="doc-summary-chip">{archiveCountLabel} เก็บถาวร</span>
           </div>
         </header>
 
@@ -1313,31 +1438,20 @@ export const DocumentSummaryPage = () => {
           <section
             className="doc-summary-card doc-summary-card-input rounded-3xl p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] dark:shadow-2xl"
             style={{
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(var(--accent-rgb),0.05))',
-              border: '1px solid rgba(var(--accent-rgb),0.10)',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
               backdropFilter: 'blur(22px)'
             }}
           >
-            
-            <div className="mb-6 flex items-center justify-between gap-3">
-              <div className="flex items-center space-x-2">
-                <span className="text-lg">⚙️</span>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">ตั้งค่าการสรุป</h2>
-                  <p className="text-xs text-slate-500">เลือกบริบทให้ AI เข้าใจเนื้อหาที่จะสรุปได้แม่นยำขึ้น</p>
-                </div>
-              </div>
-              <span
-                className="hidden rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] md:inline-flex"
-                style={{
-                  background: 'rgba(var(--accent-rgb),0.10)',
-                  color: 'var(--accent)'
-                }}
-              >
-                Config
-              </span>
-            </div>
 
+            {/* Step 1 */}
+            <div className="mb-4 flex items-center gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ background: 'var(--accent)' }}>1</span>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>ขั้นที่ 1</p>
+                <h3 className="text-[15px] font-bold leading-tight text-slate-800 dark:text-white">เลือกบริบท <span className="text-sm font-normal text-slate-400">เทอม / วิชา</span></h3>
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               {/* Semester Dropdown */}
               <div className="space-y-2">
@@ -1348,8 +1462,8 @@ export const DocumentSummaryPage = () => {
                     onChange={event => setSelectedSemesterKey(event.target.value)}
                     className="w-full appearance-none text-slate-800 dark:text-white text-sm rounded-xl px-4 py-3 focus:outline-none backdrop-blur-md transition-all cursor-pointer"
                     style={{
-                      background: 'rgba(255,255,255,0.98)',
-                      border: '1px solid rgba(148,163,184,0.22)',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
                       boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7)'
                     }}
                   >
@@ -1376,8 +1490,8 @@ export const DocumentSummaryPage = () => {
                     }}
                     className="w-full appearance-none text-slate-800 dark:text-white text-sm rounded-xl px-4 py-3 focus:outline-none backdrop-blur-md transition-all cursor-pointer"
                     style={{
-                      background: 'rgba(255,255,255,0.98)',
-                      border: '1px solid rgba(148,163,184,0.22)',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
                       boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7)'
                     }}
                   >
@@ -1398,12 +1512,20 @@ export const DocumentSummaryPage = () => {
               </div>
             </div>
 
+            {/* Step 2 */}
+            <div className="mb-4 flex items-center gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ background: 'var(--accent)' }}>2</span>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>ขั้นที่ 2</p>
+                <h3 className="text-[15px] font-bold leading-tight text-slate-800 dark:text-white">ใส่เนื้อหา <span className="text-sm font-normal text-slate-400">เอกสาร หรือ ไฟล์เสียง</span></h3>
+              </div>
+            </div>
             {/* Input Type Toggle */}
             <div
               className="doc-input-toggle flex p-1.5 backdrop-blur-md rounded-2xl mb-6 w-full max-w-md mx-auto"
               style={{
-                background: 'rgba(248,250,252,0.95)',
-                border: '1px solid rgba(148,163,184,0.18)',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8)'
               }}
             >
@@ -1418,9 +1540,9 @@ export const DocumentSummaryPage = () => {
                 style={
                   inputMode === 'document'
                     ? {
-                        background: 'rgba(var(--accent-rgb),0.10)',
-                        borderColor: 'rgba(var(--accent-rgb),0.22)',
-                        color: 'var(--accent)'
+                        background: 'var(--accent)',
+                        borderColor: 'var(--accent)',
+                        color: '#ffffff'
                       }
                     : undefined
                 }
@@ -1439,9 +1561,9 @@ export const DocumentSummaryPage = () => {
                 style={
                   inputMode === 'audio'
                     ? {
-                        background: 'rgba(var(--accent-rgb),0.10)',
-                        borderColor: 'rgba(var(--accent-rgb),0.22)',
-                        color: 'var(--accent)'
+                        background: 'var(--accent)',
+                        borderColor: 'var(--accent)',
+                        color: '#ffffff'
                       }
                     : undefined
                 }
@@ -1460,20 +1582,18 @@ export const DocumentSummaryPage = () => {
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onClick={triggerFileSelect}
-                  className="doc-upload-zone border-2 border-dashed rounded-[28px] p-10 flex flex-col items-center justify-center transition-all group cursor-pointer backdrop-blur-sm"
+                  className="doc-upload-zone border-2 border-dashed rounded-[28px] p-6 md:p-10 flex flex-col items-center justify-center transition-all group cursor-pointer backdrop-blur-sm"
                   style={{
-                    borderColor: isDragging ? 'rgba(var(--accent-rgb),0.45)' : 'rgba(148,163,184,0.26)',
-                    background: isDragging
-                      ? 'linear-gradient(180deg, rgba(var(--accent-rgb),0.20), color-mix(in srgb, var(--surface-2) 90%, rgba(var(--accent-rgb),0.16)))'
-                      : 'linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 96%, transparent), color-mix(in srgb, var(--surface) 92%, rgba(var(--accent-rgb),0.08)))'
+                    borderColor: isDragging ? 'var(--accent)' : 'var(--border)',
+                    background: isDragging ? 'var(--surface-2)' : 'var(--surface-2)'
                   }}
                 >
                   <div
                     className="w-16 h-16 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-all text-2xl shadow-sm dark:shadow-none"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(var(--accent-rgb),0.16), rgba(255,255,255,0.92))',
-                      border: '1px solid rgba(var(--accent-rgb),0.18)',
-                      color: 'var(--accent)'
+                      background: 'var(--accent)',
+                      border: '1px solid var(--accent)',
+                      color: '#ffffff'
                     }}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-slate-700 dark:text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
@@ -1491,9 +1611,8 @@ export const DocumentSummaryPage = () => {
                     disabled={isLoading}
                     className="doc-upload-select-btn px-6 py-2.5 text-sm font-bold rounded-full transition-all duration-200 disabled:opacity-50 backdrop-blur-md shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 dark:shadow-none !text-white"
                     style={{
-                      background:
-                        'linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, white) 0%, color-mix(in srgb, var(--accent) 84%, black) 100%)',
-                      border: '1px solid color-mix(in srgb, var(--accent) 48%, white)',
+                      background: 'var(--accent)',
+                      border: '1px solid var(--accent)',
                       color: '#ffffff',
                       WebkitTextFillColor: '#ffffff',
                       textShadow: '0 1px 2px rgba(0,0,0,0.35)',
@@ -1511,43 +1630,26 @@ export const DocumentSummaryPage = () => {
                   />
                 </div>
 
-                <div className="mt-5">
-                  <button
-                    type="button"
-                    onClick={startSummary}
-                    disabled={!selectedFile || isLoading || isSaving}
-                    className="doc-primary-action w-full px-8 py-3 text-white font-bold rounded-xl shadow-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-2xl active:translate-y-0 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-md"
-                    style={{
-                      background: 'linear-gradient(90deg, color-mix(in srgb, var(--accent) 92%, #2563eb), color-mix(in srgb, var(--accent) 68%, white))',
-                      boxShadow: '0 22px 38px rgba(var(--accent-rgb),0.35)',
-                      border: '1px solid rgba(255,255,255,0.25)'
-                    }}
-                  >
-                    {isLoading || isSaving ? (
-                      <>
-                        <span className="animate-spin inline-block">⏳</span>
-                        <span>กำลังประมวลผล...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>✨</span>
-                        <span>สร้างสรุปเนื้อหา</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
                 <hr className="border-white/60 dark:border-white/10 my-8" />
 
-                {/* Preferences & Submit */}
+                {/* Step 3 */}
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ background: 'var(--accent)' }}>3</span>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>ขั้นที่ 3</p>
+                    <h3 className="text-[15px] font-bold leading-tight text-slate-800 dark:text-white">ตั้งค่าการสรุป <span className="text-sm font-normal text-slate-400">รูปแบบ / อารมณ์</span></h3>
+                  </div>
+                </div>
+
+                {/* Preferences */}
                 <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                   <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
                     <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">รูปแบบการสรุป:</span>
                     <div
                       className="doc-save-period-tabs flex rounded-xl p-1 border backdrop-blur-sm"
                       style={{
-                      background: 'rgba(255,255,255,0.92)',
-                      borderColor: 'rgba(148,163,184,0.18)'
+                      background: 'var(--surface-2)',
+                      borderColor: 'var(--border)'
                     }}
                     >
                       {saveSummaryPeriodOptions.map(option => (
@@ -1559,9 +1661,9 @@ export const DocumentSummaryPage = () => {
                           style={
                             saveSummaryPeriod === option.key
                               ? {
-                                  background: 'rgba(var(--accent-rgb),0.10)',
-                                  color: 'var(--accent)',
-                                  border: '1px solid rgba(var(--accent-rgb),0.20)'
+                                  background: 'var(--accent)',
+                                  color: '#ffffff',
+                                  border: '1px solid var(--accent)'
                                 }
                               : undefined
                           }
@@ -1577,8 +1679,8 @@ export const DocumentSummaryPage = () => {
                         onChange={event => setSelectedMood(event.target.value)}
                         className="doc-mood-select w-full sm:w-auto appearance-none text-slate-800 dark:text-white text-sm rounded-xl pl-10 pr-10 py-2.5 focus:outline-none backdrop-blur-md transition-all cursor-pointer"
                         style={{
-                      background: 'rgba(255,255,255,0.98)',
-                      border: '1px solid rgba(148,163,184,0.22)'
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)'
                     }}
                       >
                         <option value="" className="bg-white text-slate-900 dark:bg-slate-900 dark:text-white">เลือกอารมณ์ก่อนบันทึกสรุป</option>
@@ -1592,13 +1694,38 @@ export const DocumentSummaryPage = () => {
                   </div>
 
                 </div>
+
+                {/* Submit */}
+                <button
+                  type="button"
+                  onClick={startSummary}
+                  disabled={!selectedFile || isLoading || isSaving}
+                  className="doc-primary-action mt-7 w-full px-8 py-3.5 text-white font-bold rounded-xl shadow-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-2xl active:translate-y-0 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-md"
+                  style={{
+                    background: 'var(--accent)',
+                    boxShadow: '0 22px 38px rgba(var(--accent-rgb),0.35)',
+                    border: '1px solid var(--accent)'
+                  }}
+                >
+                  {isLoading || isSaving ? (
+                    <>
+                      <span className="animate-spin inline-block">⏳</span>
+                      <span>กำลังประมวลผล...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>✨</span>
+                      <span>สร้างสรุปเนื้อหา</span>
+                    </>
+                  )}
+                </button>
               </>
             ) : (
               <div
                 className="rounded-2xl p-2 backdrop-blur-md"
                 style={{
-                  background: 'rgba(248,250,252,0.9)',
-                  border: '1px solid rgba(148,163,184,0.16)'
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border)'
                 }}
               >
                 <VoiceSummaryPage key={inputMode} embedded onSummaryReady={handleVoiceSummaryReady} />
@@ -1608,11 +1735,12 @@ export const DocumentSummaryPage = () => {
             {/* Status / Errors Alerts */}
             <div className="mt-6 space-y-3">
               <div
-                className="doc-status-banner rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2 backdrop-blur-sm"
+                className="doc-status-banner rounded-xl px-4 py-2.5 text-[13px] font-medium flex items-center gap-2"
                 style={{
-                  border: '1px solid rgba(var(--accent-rgb),0.22)',
-                  background: 'rgba(var(--accent-rgb),0.10)',
-                  color: 'var(--accent)'
+                  border: '1px solid var(--border)',
+                  borderLeft: '3px solid var(--accent)',
+                  background: 'var(--surface-2)',
+                  color: 'var(--muted)'
                 }}
               >
                  <span>🕒</span> {statusText}
@@ -1645,8 +1773,8 @@ export const DocumentSummaryPage = () => {
           id="result-section"
           className="doc-summary-card doc-summary-card-result rounded-3xl p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] dark:shadow-2xl"
           style={{
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(var(--accent-rgb),0.04))',
-              border: '1px solid rgba(var(--accent-rgb),0.10)',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
               backdropFilter: 'blur(22px)'
             }}
         >
@@ -1691,9 +1819,9 @@ export const DocumentSummaryPage = () => {
                 disabled={!canSaveSummary}
                 className="doc-toolbar-btn doc-toolbar-btn-primary flex items-center space-x-1.5 px-4 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-md shadow-sm dark:shadow-none"
                 style={{
-                  background: 'rgba(var(--accent-rgb),0.10)',
-                  color: 'var(--accent)',
-                  border: '1px solid rgba(var(--accent-rgb),0.20)'
+                  background: 'var(--accent)',
+                  color: '#ffffff',
+                  border: '1px solid var(--accent)'
                 }}
               >
                 <span>💾</span>
@@ -1706,10 +1834,8 @@ export const DocumentSummaryPage = () => {
             <div
               className={`doc-result-panel w-full min-h-[300px] rounded-2xl border transition-all backdrop-blur-sm ${hasResultContent ? 'p-6' : 'border-dashed flex flex-col items-center justify-center'}`}
               style={{
-                borderColor: hasResultContent ? 'rgba(var(--accent-rgb),0.14)' : 'rgba(var(--accent-rgb),0.22)',
-                background: hasResultContent
-                  ? 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(var(--accent-rgb),0.05))'
-                  : 'linear-gradient(180deg, rgba(255,255,255,0.92), rgba(var(--accent-rgb),0.06))'
+                borderColor: 'var(--border)',
+                background: 'var(--surface-2)'
               }}
             >
               {!hasResultContent ? (
@@ -1735,18 +1861,18 @@ export const DocumentSummaryPage = () => {
         <section
           className="doc-summary-card doc-summary-card-history rounded-3xl p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] dark:shadow-2xl"
           style={{
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(var(--accent-rgb),0.04))',
-              border: '1px solid rgba(var(--accent-rgb),0.10)',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
               backdropFilter: 'blur(22px)'
             }}
         >
-          
+
           <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-slate-200 dark:border-white/10 pb-4 gap-4">
             <div
               className="rounded-xl px-4 py-3 backdrop-blur-sm"
               style={{
-                border: '1px solid rgba(var(--accent-rgb),0.24)',
-                background: 'linear-gradient(135deg, color-mix(in srgb, var(--surface) 92%, rgba(var(--accent-rgb),0.14)), color-mix(in srgb, var(--surface-2) 92%, rgba(var(--accent-rgb),0.10)))'
+                border: '1px solid var(--border)',
+                background: 'var(--surface-2)'
               }}
             >
               <div className="flex items-center space-x-2 mb-1">
@@ -1760,8 +1886,8 @@ export const DocumentSummaryPage = () => {
             <div
               className="doc-history-tabs flex space-x-1 p-1 rounded-xl overflow-x-auto scrollbar-hide backdrop-blur-md"
               style={{
-                background: 'rgba(248,250,252,0.95)',
-                border: '1px solid rgba(var(--accent-rgb),0.12)'
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)'
               }}
             >
                {[
@@ -1922,9 +2048,9 @@ export const DocumentSummaryPage = () => {
                                  disabled={isAlreadyArchived(item)}
                                  className="rounded-lg px-3 py-1.5 text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed backdrop-blur-md shadow-sm dark:shadow-none"
                                  style={{
-                                   border: '1px solid rgba(var(--accent-rgb),0.18)',
-                                   background: 'rgba(var(--accent-rgb),0.10)',
-                                   color: 'var(--accent)'
+                                   border: '1px solid var(--accent)',
+                                   background: 'var(--accent)',
+                                   color: '#ffffff'
                                  }}
                                >
                                  {isAlreadyArchived(item) ? 'บันทึกถาวรแล้ว' : 'บันทึกถาวร'}

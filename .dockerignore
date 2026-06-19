@@ -1,0 +1,15 @@
+# Keep the backend image small — frontend builds on Cloudflare Pages, not here
+frontend/
+node_modules/
+vendor/
+.git/
+.github/
+*.log
+legacy_api_error.log
+storage/logs/*
+.env
+.env.*
+# big local DB dump is not needed in the image
+db_651998018 (9).sql
+Mail/
+uploads/

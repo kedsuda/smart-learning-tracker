@@ -367,7 +367,7 @@ const thaiMonthOptions = [
   'ธันวาคม',
 ];
 
-export const CalendarPage = () => {
+export const CalendarPage = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const createDatePickerRef = useRef<HTMLInputElement | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
@@ -822,8 +822,8 @@ export const CalendarPage = () => {
   const todayExamCount = selectedEvents.filter(event => resolveEventType(event) === 'exam').length;
 
   return (
-    <div className="min-h-screen bg-transparent px-4 py-6 text-[color:var(--text)] md:px-8 md:py-8">
-      <div className="mx-auto w-full max-w-6xl space-y-6">
+    <div className={`bg-transparent text-[color:var(--text)] ${embedded ? 'px-3 py-4' : 'min-h-screen px-4 py-6 md:px-8 md:py-8'}`}>
+      <div className={`mx-auto w-full max-w-6xl ${embedded ? 'space-y-4' : 'space-y-6'}`}>
       {error ? (
         <div className="rounded-2xl border border-rose-500/35 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300 shadow-[0_10px_24px_rgba(244,63,94,0.14)]">
           {error}
@@ -832,6 +832,7 @@ export const CalendarPage = () => {
 
         <section className="rounded-[28px] border border-muted bg-[color:var(--panel-bg)] p-5 shadow-soft md:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            {!embedded && (
             <div>
               <p className="inline-flex items-center rounded-full border border-[color:rgba(var(--accent-rgb),0.35)] bg-[color:rgba(var(--accent-rgb),0.08)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
                 Smart Calendar
@@ -841,10 +842,11 @@ export const CalendarPage = () => {
               </h1>
               <p className="mt-1 text-sm text-[color:rgba(var(--text),0.72)]">จัดการเวลาเรียน สอบ และกิจกรรมรายวันในหน้าเดียว</p>
             </div>
+            )}
             <button
               type="button"
               onClick={() => setIsAddingEvent(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold text-[color:var(--on-accent)] shadow-[0_12px_24px_rgba(var(--accent-rgb),0.26)] transition hover:opacity-95"
+              className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold text-[color:var(--on-accent)] shadow-[0_12px_24px_rgba(var(--accent-rgb),0.26)] transition hover:opacity-95 ${embedded ? 'w-full' : ''}`}
               style={{ background: 'var(--accent)' }}
             >
               <PlusIcon size={16} />
@@ -852,7 +854,7 @@ export const CalendarPage = () => {
             </button>
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
             <div className="rounded-[18px] border border-muted bg-[color:var(--surface)] px-4 py-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">รายการทั้งหมด</p>
               <p className="mt-1.5 text-2xl font-bold text-[color:var(--text)]">{loading ? '...' : visibleEvents.length}</p>
@@ -872,8 +874,8 @@ export const CalendarPage = () => {
           </div>
         </section>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <section className="lg:col-span-8 min-w-0">
+      <div className={`grid grid-cols-1 gap-6 ${embedded ? 'xl:grid-cols-12' : 'lg:grid-cols-12'}`}>
+        <section className={`min-w-0 ${embedded ? 'xl:col-span-8' : 'lg:col-span-8'}`}>
           <div className="bg-[color:var(--panel-bg)] backdrop-blur-xl border border-muted rounded-[32px] overflow-hidden shadow-soft">
           <div className="flex flex-col gap-4 border-b border-muted px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6 sm:py-5">
             <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
@@ -1053,7 +1055,7 @@ export const CalendarPage = () => {
                 ไม่พบรายวิชาที่ค้นหา
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 {filteredSubjectStatuses.slice(0, 6).map(subject => {
                   const isActive = subject.studied || subject.activity !== 'none';
                   const badgeLabel =
@@ -1076,12 +1078,12 @@ export const CalendarPage = () => {
                   return (
                       <div
                         key={subject.id}
-                        className={`p-5 flex items-center gap-4 rounded-[32px] border transition-all ${
+                        className={`grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 rounded-[28px] border p-4 transition-all sm:p-5 ${
                         isActive ? 'border-muted surface' : 'border-muted surface-2 opacity-70'
                         }`}
                       >
                       <div
-                        className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
                           subject.activity === 'class'
                             ? 'bg-emerald-500/20 text-emerald-300'
                             : subject.activity === 'exam'
@@ -1092,8 +1094,13 @@ export const CalendarPage = () => {
                         {icon}
                       </div>
                       <div className="min-w-0">
-                        <h4 className="font-bold truncate">{subject.name}</h4>
-                        <p className="text-xs text-muted">
+                        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                          <h4 className="min-w-0 flex-1 truncate font-bold">{subject.name}</h4>
+                          <div className={`shrink-0 rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${badgeClass}`}>
+                            {badgeLabel}
+                          </div>
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-muted">
                           สถานะ: {subject.studied ? 'กำลังเรียน' : 'ยังไม่เริ่ม'} •{' '}
                           {subject.activity === 'exam' ? 'มีสอบ' : subject.activity === 'class' ? 'มีเรียน' : 'ยังไม่กำหนด'}
                         </p>
@@ -1126,9 +1133,6 @@ export const CalendarPage = () => {
                           </button>
                         </div>
                       </div>
-                      <div className={`ml-auto text-[10px] px-3 py-1 rounded-full border font-bold uppercase ${badgeClass}`}>
-                        {badgeLabel}
-                      </div>
                     </div>
                   );
                 })}
@@ -1137,7 +1141,7 @@ export const CalendarPage = () => {
           </div>
         </section>
 
-        <aside className="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-6">
+        <aside className={`flex flex-col gap-6 ${embedded ? 'xl:col-span-4 xl:sticky xl:top-6' : 'lg:col-span-4 lg:sticky lg:top-6'}`}>
           {!isAddingEvent ? (
             <section className="overflow-hidden rounded-[32px] border border-muted bg-[color:var(--panel-bg)] backdrop-blur-xl shadow-soft">
               <div className="flex items-start justify-between gap-4 px-6 py-6">

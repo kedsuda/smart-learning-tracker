@@ -315,15 +315,17 @@ class AIService
                 ."- ประเด็นที่ควรพัฒนา: {$weakPointText}\n";
         }
 
-        $prompt = "ข้อมูลวิชาที่ผู้ใช้ชอบสรุปและทำได้ดี:\n{$lines}\n\n"
+        $prompt = "หลักฐานผลแบบฝึกหัดจริง แยกตามรายวิชา (เรียงจากผลงานดีที่สุด):\n{$lines}\n\n"
             .$latestQuizSection
             .$latestQuizAnalysisSection
             .$weakSubjectsSection
-            ."ช่วยแนะนำเส้นทางอาชีพที่เหมาะสม 3 รายการ โดยให้น้ำหนักหลักกับ 1) วิชาที่ผู้ใช้สรุปบ่อย 2) ผลข้อสอบล่าสุดและคะแนนเฉลี่ย "
-            ."และใช้จุดที่ยังควรพัฒนาเป็นข้อมูลเสริม "
+            ."ช่วยแนะนำเส้นทางอาชีพที่เหมาะสมไม่เกิน 3 รายการ โดยใช้เฉพาะผลแบบฝึกหัดจริงเป็นหลัก: คะแนนเฉลี่ย คะแนนล่าสุด อัตราผ่าน และจำนวนครั้งที่ทำ "
+            ."ข้อมูลการเรียนหรือสรุปใช้เป็นบริบทเสริมเท่านั้น ห้ามใช้แทนหลักฐานจากแบบฝึกหัด "
             ."ให้ระบุทักษะที่ควรพัฒนาเพิ่มเติมแบบเฉพาะเจาะจง และเหตุผลสั้น ๆ\n\n"
-            ."ถ้าวิชาไหนสรุปบ่อยและคะแนนข้อสอบดี ให้เชื่อมโยงอาชีพกับวิชานั้นชัดเจน "
-            ."ถ้าคะแนนข้อสอบล่าสุดยังไม่สูง ให้สะท้อนหัวข้อทักษะที่ควรอัปก่อนเป็นพิเศษ\n\n"
+            ."ห้ามอ้างรายวิชา ความถนัด ประสบการณ์ หรืออาชีพจากข้อมูลที่ไม่มีในหลักฐานด้านบน "
+            ."subjects ของทุกคำแนะนำต้องเป็นชื่อวิชาที่ปรากฏในหลักฐานเท่านั้น "
+            ."ถ้าหลักฐานไม่พอหรือคะแนนยังไม่ชี้ความถนัดอย่างน่าเชื่อถือ ให้คืน recommendations เป็น [] และห้ามเดา "
+            ."ถ้าคะแนนล่าสุดยังไม่สูง ให้สะท้อนเป็นทักษะที่ควรพัฒนา ไม่ใช่กล่าวว่าผู้ใช้ถนัดวิชานั้น\n\n"
             ."ตอบกลับเป็น JSON เท่านั้นในรูปแบบ:\n{\n  \"recommendations\": [\n    {\n      \"career\": \"ชื่ออาชีพ\",\n      \"skills\": \"ทักษะที่ควรพัฒนา (คั่นด้วยจุลภาค)\",\n      \"subjects\": \"รายวิชาที่เกี่ยวข้อง (คั่นด้วยจุลภาค)\",\n      \"score\": 0-100,\n      \"reason\": \"เหตุผลสั้น ๆ\"\n    }\n  ]\n}\n\nกำหนด score เป็นตัวเลข 0-100 และให้ครบ 3 รายการ";
 
         if ($this->shouldUseGroqForCareer()) {
@@ -391,8 +393,14 @@ class AIService
             return [];
         }
 
-        return collect($items)->map(function (array $item) {
-            $career = trim((string) ($item['career'] ?? 'เส้นทางอาชีพทั่วไป'));
+        $allowedSubjects = collect($subjects)
+            ->pluck('name')
+            ->filter(fn ($name) => is_string($name) && trim($name) !== '')
+            ->map(fn ($name) => trim((string) $name))
+            ->values();
+
+        return collect($items)->map(function (array $item) use ($allowedSubjects) {
+            $career = trim((string) ($item['career'] ?? ''));
             $skills = $item['skills'] ?? '';
             $subjects = $item['subjects'] ?? '';
             $reason = trim((string) ($item['reason'] ?? ''));
@@ -404,17 +412,26 @@ class AIService
                 $subjects = implode(', ', array_filter(array_map('trim', $subjects)));
             }
 
+            $matchedSubjects = collect(preg_split('/[,|]+/u', (string) $subjects) ?: [])
+                ->map(fn ($name) => trim($name))
+                ->filter(fn ($name) => $name !== '' && $allowedSubjects->contains($name))
+                ->values();
+
+            if ($career === '' || $matchedSubjects->isEmpty() || $reason === '') {
+                return null;
+            }
+
             $score = (float) ($item['score'] ?? 0);
             $score = max(0, min(100, $score));
 
             return [
                 'career' => $career,
                 'skills' => (string) $skills,
-                'subjects' => (string) $subjects,
+                'subjects' => $matchedSubjects->implode(', '),
                 'score' => $score,
                 'reason' => $reason,
             ];
-        })->values()->all();
+        })->filter()->take(3)->values()->all();
     }
 
     private function shouldUseGroqForCareer(): bool

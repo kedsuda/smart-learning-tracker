@@ -1068,6 +1068,32 @@ export const OverviewPage = () => {
     setSubjectEditorOpen(true);
   };
 
+  const openSubjectEditorForCreate = () => {
+    const selectedOption = semesterOptions.find(option => option.key === selectedSemesterKey);
+    const matchingSemester = selectedSemesterKey.startsWith('id:')
+      ? semesterChoices.find(choice => choice.semester_id === Number(selectedSemesterKey.slice(3)))
+      : semesterChoices.find(choice =>
+          choice.semester === selectedOption?.semester &&
+          choice.academic_year === selectedOption?.academic_year
+        );
+    const defaultSemester = matchingSemester ?? semesterChoices[0] ?? null;
+
+    setSubjectEditorError(null);
+    setSubjectEditor({
+      subjectId: null,
+      sourceSubjectId: '',
+      name: '',
+      semesterId: defaultSemester ? String(defaultSemester.semester_id) : '',
+      date: format(new Date(), 'yyyy-MM-dd'),
+      startTime: '',
+      endTime: '',
+      room: '',
+      allDay: false,
+      color: subjectColorOptions[subjects.length % subjectColorOptions.length]?.value ?? subjectColorOptions[0].value,
+    });
+    setSubjectEditorOpen(true);
+  };
+
   const closeSubjectEditor = () => {
     setSubjectEditorOpen(false);
     setSubjectEditorError(null);
@@ -1768,20 +1794,39 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
               background: `linear-gradient(180deg, rgba(var(--accent-rgb), 0.07) 0%, rgba(var(--accent-rgb), 0.035) 100%)`,
             }}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="text-base font-bold text-slate-800 sm:text-lg">จัดการรายวิชาในระบบ</h3>
-                <p className="mt-1 text-xs text-slate-500 sm:text-sm">รายวิชาที่พร้อมนำไปจัดตารางเรียน</p>
+            <div className="relative">
+              <div className={`min-w-0 ${filteredSubjects.length > 0 ? 'pr-36' : 'pr-14'}`}>
+                <h3 className="text-base font-bold text-[color:var(--text)] sm:text-lg">จัดการรายวิชาในระบบ</h3>
+                <p className="mt-1 text-xs text-[color:var(--muted)] sm:text-sm">รายวิชาที่พร้อมนำไปจัดตารางเรียน</p>
               </div>
-              {filteredSubjects.length > 0 ? (
+              <div className="absolute right-0 top-0 flex items-center gap-2">
+                {filteredSubjects.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setSubjectCatalogOpen(true)}
+                    className="inline-flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-semibold shadow-sm transition hover:opacity-80 sm:px-3.5 sm:text-sm"
+                    style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                  >
+                    ดูทั้งหมด
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => setSubjectCatalogOpen(true)}
-                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                  onClick={openSubjectEditorForCreate}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  style={{
+                    background: 'var(--accent)',
+                    color: 'var(--on-accent)',
+                    WebkitTextFillColor: 'var(--on-accent)',
+                  }}
+                  title="เพิ่มวิชา"
+                  aria-label="เพิ่มวิชา"
                 >
-                  ดูทั้งหมด
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+                    <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+                  </svg>
                 </button>
-              ) : <span />}
+              </div>
             </div>
 
             <div className="mt-4">
@@ -1817,10 +1862,26 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
                 </div>
               ) : (
                 <div
-                  className="rounded-2xl border border-dashed px-4 py-5 text-center text-sm text-[color:var(--muted)]"
+                  className="flex flex-col items-center rounded-2xl border border-dashed px-4 py-6 text-center text-sm text-[color:var(--muted)]"
                   style={{ borderColor: 'rgba(var(--accent-rgb), 0.22)', background: 'var(--surface)' }}
                 >
-                  ยังไม่มีรายวิชาในภาคเรียนนี้
+                  <span>ยังไม่มีรายวิชาในภาคเรียนนี้</span>
+                  <button
+                    type="button"
+                    onClick={openSubjectEditorForCreate}
+                    className="mt-3 inline-flex h-10 w-10 items-center justify-center rounded-full shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    style={{
+                      background: 'var(--accent)',
+                      color: 'var(--on-accent)',
+                      WebkitTextFillColor: 'var(--on-accent)',
+                    }}
+                    title="เพิ่มวิชาแรก"
+                    aria-label="เพิ่มวิชาแรก"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+                      <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+                    </svg>
+                  </button>
                 </div>
               )}
             </div>
@@ -2065,36 +2126,58 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
       )}
 
       {subjectEditorOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
-          <div className="surface w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-5 shadow-glow">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
+          <div
+            className="surface w-full max-w-lg overflow-hidden rounded-[1.75rem] border p-0 shadow-[0_28px_80px_rgba(15,23,42,0.30)]"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+          >
+            <div
+              className="h-1.5 w-full"
+              style={{ background: 'linear-gradient(90deg, var(--accent), rgba(var(--accent-rgb),0.42))' }}
+            />
+            <div className="p-5 sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-blue-500">Subject</p>
-                <h3 className="mt-2 text-lg font-semibold">{subjectEditor.subjectId ? 'แก้ไขวิชา' : 'เพิ่มวิชา'}</h3>
-                <p className="mt-1 text-sm text-slate-500">เพิ่มวิชาเก็บไว้ในระบบ ก่อนนำไปจัดตารางเรียนภายหลัง</p>
+                <span
+                  className="inline-flex rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em]"
+                  style={{ background: 'rgba(var(--accent-rgb),0.10)', color: 'var(--accent)' }}
+                >
+                  Subject
+                </span>
+                <h3 className="mt-3 text-xl font-bold text-[color:var(--text)]">{subjectEditor.subjectId ? 'แก้ไขวิชา' : 'เพิ่มวิชา'}</h3>
+                <p className="mt-1 text-sm leading-6 text-[color:var(--muted)]">สร้างรายวิชาเพื่อใช้จัดตารางเรียนและบันทึกการเรียน</p>
               </div>
               <button
                 type="button"
                 onClick={closeSubjectEditor}
-                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500 hover:text-slate-800"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition hover:opacity-70"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface-2)', color: 'var(--text)' }}
+                aria-label="ปิด"
               >
-                ปิด
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m6 6 12 12M18 6 6 18" strokeLinecap="round" />
+                </svg>
               </button>
             </div>
 
             {subjectEditorError && (
-              <div className="mt-3 rounded-2xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-600">
+              <div className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs text-rose-500">
                 {subjectEditorError}
               </div>
             )}
 
-            <div className="mt-4 space-y-3 text-sm">
+            <div className="mt-5 space-y-4 text-sm">
               <div>
-                <label className="mb-1 block text-xs uppercase tracking-widest text-slate-500">ภาคเรียน</label>
+                <label className="mb-2 block text-xs font-semibold text-[color:var(--muted)]">ภาคเรียน</label>
                 <select
                   value={subjectEditor.semesterId}
                   onChange={event => setSubjectEditor(prev => ({ ...prev, semesterId: event.target.value }))}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                  className="w-full rounded-xl border px-3.5 py-3 text-[color:var(--text)] shadow-sm outline-none transition focus:ring-2"
+                  style={{
+                    borderColor: 'var(--border)',
+                    background: 'var(--surface-2)',
+                    ['--tw-ring-color' as string]: 'rgba(var(--accent-rgb),0.24)',
+                  }}
                 >
                   <option value="">เลือกภาคเรียน</option>
                   {semesterChoices.map(choice => (
@@ -2106,18 +2189,24 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs uppercase tracking-widest text-slate-500">ชื่อวิชา</label>
+                <label className="mb-2 block text-xs font-semibold text-[color:var(--muted)]">ชื่อวิชา</label>
                 <input
                   type="text"
                   value={subjectEditor.name}
                   onChange={event => setSubjectEditor(prev => ({ ...prev, name: event.target.value }))}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                  placeholder="เช่น คณิตศาสตร์"
+                  className="w-full rounded-xl border px-3.5 py-3 text-[color:var(--text)] shadow-sm outline-none transition placeholder:text-[color:var(--muted)] focus:ring-2"
+                  style={{
+                    borderColor: 'var(--border)',
+                    background: 'var(--surface-2)',
+                    ['--tw-ring-color' as string]: 'rgba(var(--accent-rgb),0.24)',
+                  }}
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-xs uppercase tracking-widest text-slate-500">สีวิชา</label>
-                <div className="grid grid-cols-3 gap-2">
+                <label className="mb-2 block text-xs font-semibold text-[color:var(--muted)]">สีวิชา</label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {subjectColorOptions.map(option => {
                     const active = subjectEditor.color === option.value;
                     return (
@@ -2125,26 +2214,24 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
                         key={option.value}
                         type="button"
                         onClick={() => setSubjectEditor(prev => ({ ...prev, color: option.value }))}
-                        className={`rounded-2xl border px-3 py-2 text-left text-xs font-semibold transition ${
-                          active
-                            ? 'text-[color:var(--text)] shadow-sm'
-                            : 'text-[color:var(--muted)]'
-                        }`}
+                        className="rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition"
                         style={
                           active
                             ? {
                                 borderColor: option.value,
-                                background: 'rgba(var(--accent-rgb),0.14)',
-                                boxShadow: '0 0 0 1px rgba(var(--accent-rgb),0.18) inset'
+                                background: `${option.value}18`,
+                                color: 'var(--text)',
+                                boxShadow: `0 0 0 1px ${option.value}40 inset`
                               }
                             : {
-                                borderColor: 'transparent',
-                                background: 'color-mix(in srgb, var(--surface-2) 82%, transparent)'
+                                borderColor: 'var(--border)',
+                                background: 'var(--surface-2)',
+                                color: 'var(--muted)'
                               }
                         }
                       >
                         <span className="flex items-center gap-2">
-                          <span className="h-3 w-3 rounded-full" style={{ backgroundColor: option.value }} />
+                          <span className="h-3.5 w-3.5 rounded-full shadow-sm" style={{ backgroundColor: option.value }} />
                           {option.label}
                         </span>
                       </button>
@@ -2154,11 +2241,12 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-between gap-2">
+            <div className="mt-6 flex items-center justify-end gap-2 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
               <button
                 type="button"
                 onClick={closeSubjectEditor}
-                className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800"
+                className="rounded-xl border px-4 py-2.5 text-sm font-semibold transition hover:opacity-75"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface-2)', color: 'var(--text)' }}
               >
                 ยกเลิก
               </button>
@@ -2166,25 +2254,38 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
                 type="button"
                 onClick={saveSubjectEditor}
                 disabled={subjectEditorSaving}
-                className="rounded-full bg-blue-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60"
+                className="rounded-xl px-5 py-2.5 text-sm font-bold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-60"
+                style={{
+                  background: 'var(--accent)',
+                  color: 'var(--on-accent)',
+                  WebkitTextFillColor: 'var(--on-accent)',
+                }}
               >
                 {subjectEditorSaving ? 'กำลังบันทึก...' : subjectEditor.subjectId ? 'บันทึกวิชา' : 'เพิ่มวิชา'}
               </button>
+            </div>
             </div>
           </div>
         </div>
       )}
 
       {scheduleEditingSlot && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
-          <div className="surface w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 shadow-glow">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
+          <div
+            className="surface w-full max-w-lg overflow-hidden rounded-[1.75rem] border shadow-[0_28px_80px_rgba(15,23,42,0.30)]"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+          >
+            <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg,var(--accent),rgba(var(--accent-rgb),0.38))' }} />
+            <div className="p-5 sm:p-6">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-emerald-600">Schedule</p>
-                <h3 className="mt-2 text-lg font-semibold">
+              <div className="min-w-0">
+                <span className="inline-flex rounded-full bg-[color:rgba(var(--accent-rgb),0.10)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--accent)]">
+                  Schedule
+                </span>
+                <h3 className="mt-3 text-xl font-bold text-[color:var(--text)]">
                   {scheduleEditingSlot.source === 'draft' ? 'จัดตารางเรียน' : 'แก้ไขคาบเรียน'}
                 </h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm leading-6 text-[color:var(--muted)]">
                   {scheduleEditingSlot.source === 'draft'
                     ? 'เลือกวิชาที่มีในระบบมากำหนดเวลาเรียนในตาราง'
                     : scheduleEditingSlot.subject}
@@ -2193,21 +2294,25 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
               <button
                 type="button"
                 onClick={closeScheduleEditor}
-                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500 hover:text-slate-800"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition hover:opacity-75"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface-2)', color: 'var(--muted)' }}
+                aria-label="ปิด"
               >
-                ปิด
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.1">
+                  <path d="m6 6 12 12M18 6 6 18" strokeLinecap="round" />
+                </svg>
               </button>
             </div>
 
             {scheduleEditError && (
-              <div className="mt-3 rounded-2xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-600">
+              <div className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs text-rose-500">
                 {scheduleEditError}
               </div>
             )}
 
-            <div className="mt-4 space-y-3 text-sm">
+            <div className="mt-5 space-y-4 text-sm">
               <div>
-                <label className="mb-1 block text-xs uppercase tracking-widest text-slate-500">เลือกวิชา</label>
+                <label className="mb-2 block text-xs font-semibold text-[color:var(--muted)]">เลือกวิชา</label>
                 <select
                   value={scheduleEditForm.subjectId}
                   onChange={event => {
@@ -2219,7 +2324,8 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
                       color: selectedSubject?.color ?? prev.color,
                     }));
                   }}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                  className="w-full rounded-xl border px-4 py-3 text-[color:var(--text)] shadow-sm outline-none transition focus:border-[color:var(--accent)] focus:ring-4 focus:ring-[color:rgba(var(--accent-rgb),0.10)]"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
                 >
                   <option value="">-- เลือกวิชา --</option>
                   {subjects.map(subject => (
@@ -2230,46 +2336,50 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs uppercase tracking-widest text-slate-500">ห้องเรียน</label>
+                <label className="mb-2 block text-xs font-semibold text-[color:var(--muted)]">ห้องเรียน</label>
                 <input
                   type="text"
                   value={scheduleEditForm.room}
                   onChange={event => setScheduleEditForm(prev => ({ ...prev, room: event.target.value }))}
                   placeholder="เช่น อาคาร 3 ห้อง 305"
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                  className="w-full rounded-xl border px-4 py-3 text-[color:var(--text)] shadow-sm outline-none transition placeholder:text-[color:var(--muted)] focus:border-[color:var(--accent)] focus:ring-4 focus:ring-[color:rgba(var(--accent-rgb),0.10)]"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs uppercase tracking-widest text-slate-500">เวลาเริ่ม</label>
+                  <label className="mb-2 block text-xs font-semibold text-[color:var(--muted)]">เวลาเริ่ม</label>
                   <input
                     type="time"
                     step={300}
                     value={scheduleEditForm.startTime}
                     onChange={event => setScheduleEditForm(prev => ({ ...prev, startTime: event.target.value }))}
                     disabled={scheduleEditForm.allDay}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 font-mono tabular-nums text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 disabled:opacity-60"
+                    className="w-full rounded-xl border px-4 py-3 font-mono text-base tabular-nums text-[color:var(--text)] shadow-sm outline-none transition focus:border-[color:var(--accent)] focus:ring-4 focus:ring-[color:rgba(var(--accent-rgb),0.10)] disabled:opacity-50"
+                    style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs uppercase tracking-widest text-slate-500">เวลาเลิก</label>
+                  <label className="mb-2 block text-xs font-semibold text-[color:var(--muted)]">เวลาเลิก</label>
                   <input
                     type="time"
                     step={300}
                     value={scheduleEditForm.endTime}
                     onChange={event => setScheduleEditForm(prev => ({ ...prev, endTime: event.target.value }))}
                     disabled={scheduleEditForm.allDay}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 font-mono tabular-nums text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 disabled:opacity-60"
+                    className="w-full rounded-xl border px-4 py-3 font-mono text-base tabular-nums text-[color:var(--text)] shadow-sm outline-none transition focus:border-[color:var(--accent)] focus:ring-4 focus:ring-[color:rgba(var(--accent-rgb),0.10)] disabled:opacity-50"
+                    style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
                   />
                 </div>
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-between gap-2">
+            <div className="mt-6 flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end" style={{ borderColor: 'var(--border)' }}>
               <button
                 type="button"
                 onClick={closeScheduleEditor}
-                className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800"
+                className="rounded-xl border px-5 py-3 text-sm font-semibold transition hover:opacity-75"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface-2)', color: 'var(--text)' }}
               >
                 ยกเลิก
               </button>
@@ -2277,10 +2387,12 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
                 type="button"
                 onClick={saveScheduleEdit}
                 disabled={scheduleSaving}
-                className="rounded-full bg-blue-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60"
+                className="rounded-xl px-6 py-3 text-sm font-bold shadow-[0_12px_24px_rgba(var(--accent-rgb),0.24)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:opacity-60"
+                style={{ background: 'var(--accent)', color: 'var(--on-accent)', WebkitTextFillColor: 'var(--on-accent)' }}
               >
                 {scheduleSaving ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
               </button>
+            </div>
             </div>
           </div>
         </div>

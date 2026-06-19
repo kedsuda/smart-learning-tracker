@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type SyntheticEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { House, BookOpen, ClipboardText, CalendarBlank, Target, Bell, Microphone, Suitcase, Robot, FileText, User, Archive, DotsThree, Sun, Moon } from 'phosphor-react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { api, assetBaseURL } from '../../services/api';
 import robotImage from '../../img/robot.png';
+import { CalendarPage } from './CalendarPage';
 import {
   LOCAL_NOTIFICATIONS_EVENT,
   REMOTE_NOTIFICATIONS_EVENT,
@@ -104,6 +106,7 @@ const ThemeModeSwitch = ({
 };
 
 const accentStorageKey = 'smart-classroom-accent';
+const customAccentStorageKey = 'smart-classroom-custom-accent';
 const themeStorageKey = 'smart-classroom-theme';
 const fontScaleStorageKey = 'smart-classroom-font-scale';
 const browserNotifyEnabledStorageKey = 'slt::browser-notify-enabled';
@@ -436,6 +439,67 @@ const shadeColor = (hex: string, percent: number) => {
     .slice(1)}`;
 };
 
+const normalizeHexColor = (value: string, fallback = '#3b82f6') =>
+  /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : fallback;
+
+const hexToRgbString = (hex: string) => {
+  const normalized = normalizeHexColor(hex).slice(1);
+  const value = Number.parseInt(normalized, 16);
+  return `${(value >> 16) & 255},${(value >> 8) & 255},${value & 255}`;
+};
+
+const getContrastColor = (hex: string) => {
+  const channels = hexToRgbString(hex).split(',').map(Number);
+  const luminance = channels.reduce((sum, channel, index) => {
+    const normalized = channel / 255;
+    const linear = normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+    return sum + linear * [0.2126, 0.7152, 0.0722][index];
+  }, 0);
+  return luminance > 0.48 ? '#0f172a' : '#ffffff';
+};
+
+const getAccentInkColor = (hex: string, mode: 'dark' | 'light') => {
+  const [r, g, b] = hexToRgbString(hex).split(',').map(Number);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  if (mode === 'dark') {
+    return brightness < 150 ? shadeColor(hex, 38) : hex;
+  }
+  return brightness > 175 ? shadeColor(hex, -48) : brightness > 135 ? shadeColor(hex, -28) : hex;
+};
+
+const hexToHue = (hex: string) => {
+  const [r, g, b] = hexToRgbString(hex).split(',').map(value => Number(value) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  if (delta === 0) return 0;
+  let hue = max === r
+    ? ((g - b) / delta) % 6
+    : max === g
+      ? (b - r) / delta + 2
+      : (r - g) / delta + 4;
+  hue *= 60;
+  return hue < 0 ? hue + 360 : hue;
+};
+
+const hslToHex = (hue: number, saturation = 82, lightness = 56) => {
+  const s = saturation / 100;
+  const l = lightness / 100;
+  const chroma = (1 - Math.abs(2 * l - 1)) * s;
+  const x = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = l - chroma / 2;
+  const [r, g, b] =
+    hue < 60 ? [chroma, x, 0]
+      : hue < 120 ? [x, chroma, 0]
+        : hue < 180 ? [0, chroma, x]
+          : hue < 240 ? [0, x, chroma]
+            : hue < 300 ? [x, 0, chroma]
+              : [chroma, 0, x];
+  return `#${[r, g, b].map(channel => Math.round((channel + m) * 255).toString(16).padStart(2, '0')).join('')}`;
+};
+
 const resolveProfileUrl = (value?: string | null, fallbackBase?: string) => {
   const raw = value?.trim();
   if (!raw) return null;
@@ -460,6 +524,8 @@ const resolveProfileUrl = (value?: string | null, fallbackBase?: string) => {
   const base = fallbackBase
     ?.replace(/\/public\/index\.php\/api\/?$/, '')
     ?.replace(/\/index\.php\/api\/?$/, '')
+    ?.replace(/\/public\/index\.php\/?$/, '/public')
+    ?.replace(/\/index\.php\/?$/, '')
     ?.replace(/\/api\/?$/, '');
   if (!base) return raw;
   const normalized = raw.startsWith('/') ? raw : `/${raw}`;
@@ -554,11 +620,31 @@ export const DashboardLayout = () => {
   const [accentThemeId, setAccentThemeId] = useState(() => {
     if (typeof window === 'undefined') return accentThemes[0].id;
     const stored = window.localStorage.getItem(accentStorageKey);
-    return accentThemes.some(themeItem => themeItem.id === stored) ? stored : accentThemes[0].id;
+    return stored === 'custom' || accentThemes.some(themeItem => themeItem.id === stored) ? stored : accentThemes[0].id;
+  });
+  const [customAccent, setCustomAccent] = useState(() => {
+    if (typeof window === 'undefined') return '#3b82f6';
+    return normalizeHexColor(window.localStorage.getItem(customAccentStorageKey) ?? '#3b82f6');
   });
   const activeAccentTheme = useMemo(
-    () => accentThemes.find(themeItem => themeItem.id === accentThemeId) ?? accentThemes[0],
-    [accentThemeId]
+    () => {
+      if (accentThemeId !== 'custom') {
+        return accentThemes.find(themeItem => themeItem.id === accentThemeId) ?? accentThemes[0];
+      }
+      const onAccent = getContrastColor(customAccent);
+      return {
+        id: 'custom',
+        label: 'Custom',
+        accent: customAccent,
+        accentStrong: shadeColor(customAccent, -16),
+        accentSoft: shadeColor(customAccent, 38),
+        accentRgb: hexToRgbString(customAccent),
+        onAccent,
+        onAccentRgb: onAccent === '#ffffff' ? '255,255,255' : '15,23,42',
+        preview: customAccent,
+      };
+    },
+    [accentThemeId, customAccent]
   );
   const [backgroundThemeId] = useState(backgroundThemes[0].id);
   const activeBackgroundTheme = useMemo(
@@ -571,6 +657,7 @@ export const DashboardLayout = () => {
   const [desktopThemeOpen, setDesktopThemeOpen] = useState(false);
   const [mobileThemeOpen, setMobileThemeOpen] = useState(false);
   const [logoPreviewOpen, setLogoPreviewOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [webToasts, setWebToasts] = useState<InAppToast[]>([]);
   const [notifyLoading, setNotifyLoading] = useState(false);
   const [browserNotifyEnabled, setBrowserNotifyEnabled] = useState(() => {
@@ -592,8 +679,11 @@ export const DashboardLayout = () => {
     return Math.min(FONT_SCALE_MAX, Math.max(FONT_SCALE_MIN, parsed));
   });
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const desktopNotificationDialogRef = useRef<HTMLDivElement | null>(null);
   const mobileDropdownRef = useRef<HTMLDivElement | null>(null);
+  const mobileNotificationDialogRef = useRef<HTMLDivElement | null>(null);
   const mobileMenuRef = useRef<HTMLDivElement | null>(null);
+  const mobileMenuDialogRef = useRef<HTMLDivElement | null>(null);
   const desktopThemeRef = useRef<HTMLDivElement | null>(null);
   const mobileThemeRef = useRef<HTMLDivElement | null>(null);
   const notifiedKeysRef = useRef<Set<string>>(new Set());
@@ -834,11 +924,16 @@ export const DashboardLayout = () => {
       const target = ev.target as Node;
       const clickedNotify =
         (dropdownRef.current && dropdownRef.current.contains(target)) ||
-        (mobileDropdownRef.current && mobileDropdownRef.current.contains(target));
+        (desktopNotificationDialogRef.current && desktopNotificationDialogRef.current.contains(target)) ||
+        (mobileDropdownRef.current && mobileDropdownRef.current.contains(target)) ||
+        (mobileNotificationDialogRef.current && mobileNotificationDialogRef.current.contains(target));
       if (!clickedNotify) {
         setNotifyOpen(false);
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
+      const clickedMobileMenu =
+        (mobileMenuRef.current && mobileMenuRef.current.contains(target)) ||
+        (mobileMenuDialogRef.current && mobileMenuDialogRef.current.contains(target));
+      if (!clickedMobileMenu) {
         setMobileMenuOpen(false);
       }
       if (desktopThemeRef.current && !desktopThemeRef.current.contains(target)) {
@@ -858,14 +953,16 @@ export const DashboardLayout = () => {
     root.style.setProperty('--accent', activeAccentTheme.accent);
     root.style.setProperty('--accent-strong', activeAccentTheme.accentStrong);
     root.style.setProperty('--accent-soft', activeAccentTheme.accentSoft);
+    root.style.setProperty('--accent-ink', getAccentInkColor(activeAccentTheme.accent, theme));
     root.style.setProperty('--accent-rgb', activeAccentTheme.accentRgb);
     root.style.setProperty('--on-accent', activeAccentTheme.onAccent);
     root.style.setProperty('--on-accent-rgb', activeAccentTheme.onAccentRgb);
     root.dataset.accent = activeAccentTheme.id;
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(accentStorageKey, activeAccentTheme.id);
+      window.localStorage.setItem(customAccentStorageKey, customAccent);
     }
-  }, [activeAccentTheme]);
+  }, [activeAccentTheme, customAccent, theme]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -951,9 +1048,6 @@ export const DashboardLayout = () => {
     () => [
       { to: '/ai-assistant', label: 'หน้าหลัก', icon: 'assistant', accent: activeAccentTheme.accent },
       { to: '/overview', label: 'ตารางเรียน', icon: 'subjects', accent: activeAccentTheme.accent },
-      { to: '/subjects', label: 'วิชาเรียน', icon: 'subjects', accent: activeAccentTheme.accent },
-      { to: '/document-summary', label: 'สรุปด้วย AI', icon: 'documentSummary', accent: activeAccentTheme.accent },
-      { to: '/calendar', label: 'ปฏิทิน', icon: 'calendar', accent: activeAccentTheme.accent },
       { to: '/quizzes', label: 'แบบฝึกหัด', icon: 'quizzes', accent: activeAccentTheme.accent },
       { to: '/profile', label: 'โปรไฟล์', icon: 'profile', accent: activeAccentTheme.accent },
       { to: '/career-advisor', label: 'อาชีพแนะนำ', icon: 'careerAdvisor', accent: activeAccentTheme.accent }
@@ -990,7 +1084,7 @@ export const DashboardLayout = () => {
   const mobileNavItems = navItems.filter(item => item.showOnMobile !== false);
   const primaryNavItems = navItems.filter(item => item.to !== '/profile' && item.to !== '/career-advisor');
   const mobileQuickActionRoutes = useMemo(
-    () => new Set(['/subjects', '/quizzes', '/career-advisor']),
+    () => new Set(['/quizzes', '/career-advisor']),
     []
   );
   const bottomNavItems = [
@@ -1007,9 +1101,6 @@ export const DashboardLayout = () => {
           label: 'ตารางเรียน',
           icon: 'subjects' as IconName,
         }
-      : null,
-    mobileNavItems.find(item => item.to === '/calendar')
-      ? { ...mobileNavItems.find(item => item.to === '/calendar')!, label: 'ปฏิทิน' }
       : null,
     mobileNavItems.find(item => item.to === '/quizzes')
       ? { ...mobileNavItems.find(item => item.to === '/quizzes')!, label: 'แบบฝึกหัด' }
@@ -1039,78 +1130,26 @@ export const DashboardLayout = () => {
     () => resolveProfileUrl(user?.profile_pic ?? user?.avatar, assetBaseURL || api.defaults.baseURL),
     [user?.profile_pic, user?.avatar]
   );
-  const renderAccentPicker = ({
-    onPick,
-    variant = 'default',
-  }: {
-    onPick?: () => void;
-    variant?: 'default' | 'mobileMenu';
-  } = {}) => (
-    <div className={`grid grid-cols-3 ${
-      variant === 'mobileMenu'
-        ? 'mt-4 gap-x-4 gap-y-5 px-2'
-        : 'mt-2 gap-x-1 gap-y-2.5 sm:mt-4 sm:gap-x-3 sm:gap-y-4'
-    }`}>
-      {accentThemes.map(option => {
-        const isActive = option.id === activeAccentTheme.id;
-        return (
-          <button
-            key={option.id}
-            type="button"
-            onClick={() => {
-              setAccentThemeId(option.id);
-              onPick?.();
-            }}
-            className="group flex flex-col items-center text-center"
-            aria-label={`เลือกสี ${option.label}`}
-            aria-pressed={isActive}
-          >
-            <span
-              className={`relative block rounded-full border transition ${
-                variant === 'mobileMenu' ? 'h-14 w-14' : 'h-10 w-10 sm:h-16 sm:w-16'
-              } ${
-                isActive
-                  ? variant === 'mobileMenu'
-                    ? 'scale-105 border-white ring-4 ring-offset-2 ring-[color:rgb(var(--accent-rgb))] shadow-[0_12px_22px_rgba(15,23,42,0.14)]'
-                    : 'scale-[1.03] border-white ring-2 ring-white shadow-[0_8px_20px_rgba(37,99,235,0.24)] sm:ring-4 sm:shadow-[0_10px_24px_rgba(37,99,235,0.28)]'
-                  : theme === 'dark'
-                    ? 'border-white/20 group-hover:scale-[1.03]'
-                    : 'border-white/70 group-hover:scale-[1.03]'
-              }`}
-              style={{ background: option.preview ?? option.accent }}
-            >
-              {isActive ? (
-                <span className={`absolute inset-0 flex items-center justify-center font-bold leading-none text-white ${
-                  variant === 'mobileMenu' ? 'text-2xl' : 'text-xl sm:text-[32px]'
-                }`}>
-                  ✓
-                </span>
-              ) : null}
-              <span className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-tr from-black/10 to-white/20" />
-            </span>
-            <span
-              className={`font-bold leading-none ${
-                variant === 'mobileMenu' ? 'mt-2 text-[13px]' : 'mt-1 text-[10px] sm:mt-1.5 sm:text-sm'
-              } ${
-                isActive
-                  ? variant === 'mobileMenu'
-                    ? 'text-[color:rgb(var(--accent-rgb))]'
-                    : theme === 'dark'
-                      ? 'text-white'
-                      : 'text-slate-700'
-                  : theme === 'dark'
-                    ? 'text-white/85'
-                    : 'text-slate-500'
-              }`}
-            >
-              {option.label}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-
+  const customAccentHue = useMemo(() => hexToHue(customAccent), [customAccent]);
+  const customAccentMarker = useMemo(() => {
+    const angle = ((customAccentHue - 90) * Math.PI) / 180;
+    return {
+      left: `${50 + Math.cos(angle) * 42}%`,
+      top: `${50 + Math.sin(angle) * 42}%`,
+    };
+  }, [customAccentHue]);
+  const updateCustomAccentFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const wheel = event.currentTarget;
+    const rect = wheel.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const distance = Math.hypot(event.clientX - centerX, event.clientY - centerY);
+    if (distance < rect.width * 0.2) return;
+    const angle = Math.atan2(event.clientY - centerY, event.clientX - centerX) * (180 / Math.PI);
+    const hue = (angle + 90 + 360) % 360;
+    setCustomAccent(hslToHex(hue));
+    setAccentThemeId('custom');
+  };
   return (
     <div
       className={`relative min-h-screen overflow-x-hidden lg:h-screen ${
@@ -1223,10 +1262,10 @@ export const DashboardLayout = () => {
                         }
                       >
                         <MobileIcon
-                          name={item.icon}
+                          name={item.to === '/ai-assistant' ? 'overview' : item.icon}
                           active={isActive}
                           accent={theme === 'dark' ? '#ffffff' : activeAccentTheme.accent}
-                          className="h-[18px] w-[18px]"
+                          className="h-6 w-6"
                         />
                       </span>
 	                      <span
@@ -1287,11 +1326,8 @@ export const DashboardLayout = () => {
               <button
                 type="button"
                 onClick={logout}
-                className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
-                  theme === 'dark'
-                      ? 'border border-orange-300/60 bg-gradient-to-b from-orange-500 via-orange-500 to-amber-400 text-white hover:from-orange-600 hover:via-orange-600 hover:to-amber-500'
-                        : 'border border-orange-500 bg-gradient-to-b from-orange-500 via-orange-500 to-amber-400 text-white hover:from-orange-600 hover:via-orange-600 hover:to-amber-500'
-                }`}
+                className="flex w-full items-center justify-center gap-2.5 rounded-[1.25rem] border border-rose-400/50 bg-rose-600 px-4 py-4 text-sm font-bold text-white shadow-[0_14px_30px_rgba(225,29,72,0.24)] transition hover:bg-rose-700"
+                style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
               >
                 <LogOut size={18} />
                 ออกจากระบบ
@@ -1346,27 +1382,107 @@ export const DashboardLayout = () => {
                       <span
                         className="h-5 w-5 rounded-full border border-white/40 shadow-sm"
                         style={{
-                          background:
-                            activeAccentTheme.preview ?? activeAccentTheme.accent
+                          background: `linear-gradient(145deg, ${activeAccentTheme.accent}, ${activeAccentTheme.accentStrong})`
                         }}
                       />
                     </button>
                     {desktopThemeOpen && (
                       <div
-                        className={`absolute right-0 top-full z-40 mt-3 w-[min(78vw,19rem)] rounded-3xl border p-3 shadow-[0_18px_45px_rgba(0,0,0,0.35)] sm:w-[min(88vw,22rem)] sm:p-4 ${
+                        className={`absolute right-0 top-full z-40 mt-3 w-[min(88vw,25rem)] rounded-[2rem] border p-5 shadow-[0_24px_60px_rgba(0,0,0,0.28)] ${
                           theme === 'dark'
-                            ? 'border-white/10 bg-slate-900/80 text-white'
+                            ? 'border-white/10 bg-slate-900 text-white'
                             : 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text)]'
                         }`}
                         role="dialog"
                       >
-                        <p className={`text-lg font-extrabold tracking-tight sm:text-2xl ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                          สีธีม
-                        </p>
-                        {renderAccentPicker({ onPick: () => setDesktopThemeOpen(false) })}
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className={`text-xl font-extrabold tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                              เลือกสีธีม
+                            </p>
+                            <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                              คลิกหรือลากบนวงล้อเพื่อเลือกสี
+                            </p>
+                          </div>
+                          <span
+                            className="h-5 w-5 shrink-0 rounded-full border border-white/50 shadow-sm"
+                            style={{ background: activeAccentTheme.accent }}
+                          />
+                        </div>
+
+                        <div className="mt-5 flex flex-col items-center">
+                          <div
+                            role="slider"
+                            aria-label="เลือกสีธีม"
+                            aria-valuetext={activeAccentTheme.accent.toUpperCase()}
+                            tabIndex={0}
+                            onPointerDown={event => {
+                              event.currentTarget.setPointerCapture(event.pointerId);
+                              updateCustomAccentFromPointer(event);
+                            }}
+                            onPointerMove={event => {
+                              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                                updateCustomAccentFromPointer(event);
+                              }
+                            }}
+                            className="relative h-56 w-56 touch-none rounded-full border-4 shadow-sm"
+                            style={{
+                              borderColor: theme === 'dark' ? 'rgba(255,255,255,0.16)' : '#ffffff',
+                              background: 'conic-gradient(from 0deg,#ff2a16,#ff9700,#ffe600,#9cff19,#20c936,#12c5c8,#258ff3,#5930d8,#9729dc,#d12183,#ff2a16)',
+                            }}
+                          >
+                            <span
+                              className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm"
+                              style={{ ...customAccentMarker, background: customAccent }}
+                            />
+                            <span
+                              className="pointer-events-none absolute left-1/2 top-1/2 h-[34%] w-[34%] -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white shadow-sm"
+                              style={{ background: activeAccentTheme.accent }}
+                            />
+                          </div>
+
+                          <label className="mt-4 flex cursor-pointer flex-col items-center gap-2">
+                            <span
+                              className="relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-white shadow-sm"
+                              style={{ background: activeAccentTheme.accent }}
+                            >
+                              <span className="h-2 w-2 rounded-full bg-white/65" />
+                            </span>
+                            <input
+                              type="color"
+                              value={activeAccentTheme.accent}
+                              onChange={event => {
+                                setCustomAccent(normalizeHexColor(event.target.value));
+                                setAccentThemeId('custom');
+                              }}
+                              className="sr-only"
+                              aria-label="ปรับสีแบบละเอียด"
+                            />
+                            <span className={`font-mono text-sm font-semibold uppercase ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>
+                              {activeAccentTheme.accent}
+                            </span>
+                          </label>
+                        </div>
                       </div>
                     )}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotifyOpen(false);
+                      setDesktopThemeOpen(false);
+                      setCalendarOpen(true);
+                    }}
+                    className={`relative flex h-11 w-11 items-center justify-center rounded-full border transition ${
+                      theme === 'dark'
+                        ? 'border-white/15 bg-slate-950/40 text-white'
+                        : 'border-slate-200 bg-white text-slate-600 shadow-sm hover:text-slate-900'
+                    }`}
+                    title="ปฏิทิน"
+                    aria-label="ปฏิทิน"
+                  >
+                    <MobileIcon name="calendar" accent={activeAccentTheme.accent} className="h-6 w-6" active={false} />
+                  </button>
                   <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setNotifyOpen(v => !v)}
@@ -1384,14 +1500,23 @@ export const DashboardLayout = () => {
                     </span>
                   )}
                 </button>
-                {notifyOpen && (
-                  <div
-                    className={`absolute right-0 z-40 mt-2 w-[360px] max-w-[80vw] rounded-2xl border p-3 text-sm ${
-                      theme === 'dark'
-                        ? 'border-white/10 bg-slate-900/80 text-white'
-                        : 'border-slate-100 bg-[color:var(--panel-bg)]'
-                    }`}
-                  >
+                {notifyOpen && typeof document !== 'undefined'
+                  ? createPortal(
+                      <>
+                          <button
+                            type="button"
+                            className="fixed inset-0 z-[9998] hidden h-dvh w-screen cursor-default bg-slate-950/25 backdrop-blur-md lg:block"
+                            onClick={() => setNotifyOpen(false)}
+                            aria-label="ปิดการแจ้งเตือน"
+                          />
+                    <div
+                      ref={desktopNotificationDialogRef}
+                      className={`fixed right-10 top-20 z-[9999] hidden w-[360px] max-w-[80vw] rounded-2xl border p-3 text-sm shadow-[0_22px_60px_rgba(15,23,42,0.22)] lg:block ${
+                        theme === 'dark'
+                          ? 'border-white/10 bg-slate-900/90 text-white'
+                          : 'border-slate-100 bg-[color:var(--panel-bg)]'
+                      }`}
+                    >
                     <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2 font-semibold text-[color:var(--text)]">
                         <MobileIcon name="notifications" accent={activeAccentTheme.accent} className="h-5 w-5" active />
@@ -1470,8 +1595,11 @@ export const DashboardLayout = () => {
                         ดูทั้งหมด
                       </Link>
                     </div>
-                  </div>
-                )}
+                    </div>
+                      </>,
+                      document.body
+                    )
+                  : null}
                   </div>
               </div>
             </div>
@@ -1509,6 +1637,25 @@ export const DashboardLayout = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNotifyOpen(false);
+                        setMobileThemeOpen(false);
+                        setMobileMenuOpen(false);
+                        setCalendarOpen(true);
+                      }}
+                      className="relative flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition hover:opacity-90"
+                      style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--muted)' }}
+                      aria-label="ปฏิทิน"
+                    >
+                      <MobileIcon
+                        name="calendar"
+                        accent={activeAccentTheme.accent}
+                        className="h-[18px] w-[18px]"
+                        active={false}
+                      />
+                    </button>
                     <div className="relative" ref={mobileDropdownRef}>
                       <button
                         type="button"
@@ -1533,8 +1680,22 @@ export const DashboardLayout = () => {
                           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2" style={{ boxShadow: '0 0 0 2px var(--surface)' }} />
                         )}
                       </button>
-                      {notifyOpen && (
-                        <div className="fixed left-1/2 top-[5.35rem] z-50 w-[min(320px,calc(100vw-1.5rem))] -translate-x-1/2 rounded-2xl border p-3 text-sm shadow-[0_18px_45px_rgba(15,23,42,0.14)]" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                      {notifyOpen && typeof document !== 'undefined'
+                        ? createPortal(
+                            <>
+                              <button
+                                type="button"
+                                className="fixed inset-0 z-[9998] h-dvh w-screen cursor-default bg-slate-950/25 backdrop-blur-md lg:hidden"
+                                onClick={() => setNotifyOpen(false)}
+                                aria-label="ปิดการแจ้งเตือน"
+                              />
+                              <div
+                                ref={mobileNotificationDialogRef}
+                                className="fixed left-1/2 top-[5.35rem] z-[9999] w-[min(320px,calc(100vw-1.5rem))] -translate-x-1/2 rounded-2xl border p-3 text-sm shadow-[0_22px_60px_rgba(15,23,42,0.22)] lg:hidden"
+                                style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+                                role="dialog"
+                                aria-label="แจ้งเตือนเรียน"
+                              >
                           <div className="mb-2 flex items-center justify-between">
                             <div className="flex items-center gap-2 font-semibold text-[color:var(--text)]">
                               <MobileIcon
@@ -1579,6 +1740,7 @@ export const DashboardLayout = () => {
                                     <div className="flex gap-1">
                                       {!n.is_read && (
                                         <button
+                                          type="button"
                                           onClick={() => markAsRead(n.id)}
                                           className="rounded-full border px-2 py-[2px] text-[11px] font-semibold text-[color:var(--accent)]"
                                           style={{ borderColor: 'var(--border)' }}
@@ -1586,6 +1748,14 @@ export const DashboardLayout = () => {
                                           อ่านแล้ว
                                         </button>
                                       )}
+                                      <button
+                                        type="button"
+                                        onClick={() => void deleteNotification(n.id)}
+                                        className="rounded-full border px-2 py-[2px] text-[11px] font-semibold text-rose-500 transition hover:bg-rose-500/10"
+                                        style={{ borderColor: 'rgba(244,63,94,0.28)' }}
+                                      >
+                                        ลบ
+                                      </button>
                                     </div>
                                   </div>
                                   <p className="mt-1 text-[13px] text-[color:var(--muted)]">{n.message}</p>
@@ -1606,8 +1776,11 @@ export const DashboardLayout = () => {
                               ดูทั้งหมด
                             </Link>
                           </div>
-                        </div>
-                      )}
+                              </div>
+                            </>,
+                            document.body
+                          )
+                        : null}
                     </div>
 
                     <button
@@ -1641,40 +1814,37 @@ export const DashboardLayout = () => {
                   </div>
                 </div>
 
+                {mobileMenuOpen && typeof document !== 'undefined'
+                  ? createPortal(
                 <div
-                  className={`fixed inset-0 z-50 transition-all duration-200 ease-out ${
-                    mobileMenuOpen
-                      ? 'pointer-events-auto opacity-100'
-                      : 'pointer-events-none opacity-0'
-                  }`}
+                  className="fixed inset-0 z-[9998] lg:hidden"
                 >
                   <button
                     type="button"
                     aria-label="ปิดเมนู"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="absolute inset-0 bg-slate-950/30 backdrop-blur-[2px]"
+                    className="absolute inset-0 h-dvh w-screen bg-slate-950/25 backdrop-blur-md"
                   />
                   <div
-                    className={`absolute left-1/2 top-[5.4rem] w-[min(400px,calc(100vw-1.5rem))] -translate-x-1/2 rounded-[2rem] border p-5 shadow-[0_28px_70px_rgba(15,23,42,0.18)] transition-all duration-200 ${
-                      mobileMenuOpen ? 'translate-y-0 scale-100' : '-translate-y-2 scale-[0.98]'
-                    } ${
+                    ref={mobileMenuDialogRef}
+                    className={`absolute left-1/2 top-[max(1rem,env(safe-area-inset-top))] max-h-[calc(100dvh-2rem)] w-[min(400px,calc(100vw-1.5rem))] -translate-x-1/2 overflow-y-auto rounded-[2rem] border p-5 shadow-[0_30px_80px_rgba(2,6,23,0.24)] ${
                       theme === 'dark'
-                        ? 'border-white/10 bg-[#0f172a] text-white'
-                        : 'border-slate-200/80 bg-white text-slate-900'
+                        ? 'border-white/10 bg-[#0b1220] text-white'
+                        : 'border-slate-200 bg-white text-slate-900'
                     }`}
                   >
                     <div className="mb-5 flex items-start justify-between gap-4">
                       <div>
                         <p className={`text-2xl font-extrabold tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>เมนูเพิ่มเติม</p>
-                        <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-white/55' : 'text-slate-500'}`}>ตั้งค่าธีมและเมนูเสริม</p>
+                        <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>ตั้งค่าธีมและเมนูเสริม</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setMobileMenuOpen(false)}
                         className={`flex h-11 w-11 items-center justify-center rounded-full border transition ${
                           theme === 'dark'
-                            ? 'border-white/10 bg-white/5 text-white/80 hover:bg-white/10'
-                            : 'border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'
+                            ? 'border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white'
+                            : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
                         }`}
                         aria-label="ปิดเมนู"
                       >
@@ -1688,13 +1858,15 @@ export const DashboardLayout = () => {
                     <div className="space-y-4">
                     <div
                       className={`rounded-[1.6rem] border p-5 ${
-                        theme === 'dark' ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50/90'
+                        theme === 'dark'
+                          ? 'border-white/10 bg-white/[0.04]'
+                          : 'border-slate-200 bg-slate-50'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className={`text-base font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>โหมดการแสดงผล</p>
-                          <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-white/55' : 'text-slate-500'}`}>สลับโหมดสว่างและโหมดมืด</p>
+                          <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>สลับโหมดสว่างและโหมดมืด</p>
                         </div>
                         <ThemeModeSwitch theme={theme} onChange={nextTheme => setTheme(nextTheme)} size="sm" />
                       </div>
@@ -1702,21 +1874,77 @@ export const DashboardLayout = () => {
 
                     <div
                       className={`rounded-[1.6rem] border p-5 ${
-                        theme === 'dark' ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50/90'
+                        theme === 'dark'
+                          ? 'border-white/10 bg-white/[0.04]'
+                          : 'border-slate-200 bg-slate-50'
                       }`}
                       ref={mobileThemeRef}
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className={`text-base font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>เลือกสีธีม</p>
-                          <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-white/55' : 'text-slate-500'}`}>แตะสีเพื่อเปลี่ยนธีมทันที</p>
+                          <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>แตะหรือลากบนวงล้อเพื่อเลือกสี</p>
                         </div>
                         <span
                           className="h-5 w-5 shrink-0 rounded-full border border-white/50 shadow-sm"
-                          style={{ background: activeAccentTheme.preview ?? activeAccentTheme.accent }}
+                          style={{ background: activeAccentTheme.accent }}
                         />
                       </div>
-                      {renderAccentPicker({ variant: 'mobileMenu' })}
+
+                      <div className="mt-5 flex flex-col items-center">
+                        <div
+                          role="slider"
+                          aria-label="เลือกสีธีม"
+                          aria-valuetext={activeAccentTheme.accent.toUpperCase()}
+                          tabIndex={0}
+                          onPointerDown={event => {
+                            event.currentTarget.setPointerCapture(event.pointerId);
+                            updateCustomAccentFromPointer(event);
+                          }}
+                          onPointerMove={event => {
+                            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                              updateCustomAccentFromPointer(event);
+                            }
+                          }}
+                          className="relative h-52 w-52 touch-none rounded-full border-4 shadow-sm sm:h-56 sm:w-56"
+                          style={{
+                            borderColor: theme === 'dark' ? 'rgba(255,255,255,0.16)' : '#ffffff',
+                            background: 'conic-gradient(from 0deg,#ff2a16,#ff9700,#ffe600,#9cff19,#20c936,#12c5c8,#258ff3,#5930d8,#9729dc,#d12183,#ff2a16)',
+                          }}
+                        >
+                          <span
+                            className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm"
+                            style={{ ...customAccentMarker, background: customAccent }}
+                          />
+                          <span
+                            className="pointer-events-none absolute left-1/2 top-1/2 h-[34%] w-[34%] -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white shadow-sm"
+                            style={{ background: activeAccentTheme.accent }}
+                          />
+                        </div>
+
+                        <label className="mt-5 flex cursor-pointer flex-col items-center gap-2">
+                          <span
+                            className="relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-white shadow-sm"
+                            style={{ background: activeAccentTheme.accent }}
+                          >
+                            <span className="h-2 w-2 rounded-full bg-white/65" />
+                          </span>
+                          <input
+                            type="color"
+                            value={activeAccentTheme.accent}
+                            onChange={event => {
+                              setCustomAccent(normalizeHexColor(event.target.value));
+                              setAccentThemeId('custom');
+                            }}
+                            className="sr-only"
+                            aria-label="ปรับสีแบบละเอียด"
+                          />
+                          <span className={`font-mono text-sm font-semibold uppercase ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>
+                            {activeAccentTheme.accent}
+                          </span>
+                        </label>
+
+                      </div>
                     </div>
 
                     <nav className="space-y-3">
@@ -1758,11 +1986,8 @@ export const DashboardLayout = () => {
                     <button
                       type="button"
                       onClick={logout}
-                      className={`flex w-full items-center justify-center gap-2.5 rounded-[1.25rem] px-4 py-4 text-sm font-semibold transition-colors ${
-                        theme === 'dark'
-                          ? 'border border-rose-300/60 bg-gradient-to-b from-rose-500 via-rose-500 to-pink-400 text-white hover:from-rose-600 hover:via-rose-600 hover:to-pink-500'
-                          : 'border border-rose-500 bg-gradient-to-b from-rose-500 via-rose-500 to-pink-400 text-white hover:from-rose-600 hover:via-rose-600 hover:to-pink-500'
-                      }`}
+                      className="flex w-full items-center justify-center gap-2.5 rounded-[1.25rem] border border-rose-400/50 bg-rose-600 px-4 py-4 text-sm font-bold text-white shadow-[0_14px_30px_rgba(225,29,72,0.24)] transition hover:bg-rose-700"
+                      style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                     >
                       <LogOut size={18} />
                       ออกจากระบบ
@@ -1770,6 +1995,10 @@ export const DashboardLayout = () => {
                     </div>
                   </div>
                 </div>
+                    ,
+                    document.body
+                  )
+                  : null}
               </div>
             </div>
 
@@ -1804,19 +2033,10 @@ export const DashboardLayout = () => {
               ),
               0
             );
-            const accent = activeAccentTheme.accent;
-            const accentRgb = activeAccentTheme.accentRgb;
-            // build colors straight from the user's accent (no gradient):
-            // the pill is a deep, darker tint of the accent; the raised circle is the full accent.
-            const toRgb = (hex: string) => {
-              const n = parseInt(hex.replace('#', ''), 16);
-              return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-            };
-            const toHex = (arr: number[]) =>
-              '#' + arr.map(c => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, '0')).join('');
-            const [ar, ag, ab] = toRgb(accent);
-            const pillColor = toHex([ar * 0.34, ag * 0.34, ab * 0.34]); // darker than the circle
-            const inactiveIcon = toHex([ar + (255 - ar) * 0.5, ag + (255 - ag) * 0.5, ab + (255 - ab) * 0.5]);
+            const activeColor = activeAccentTheme.accent;
+            const activeStrongColor = activeAccentTheme.accentStrong;
+            const activeIcon = '#ffffff';
+            const inactiveIcon = shadeColor(activeColor, 22);
             const notchColor = theme === 'dark' ? '#020617' : '#f8fafc';
             const pillHeight = 64;
             const wrapperHeight = 100;
@@ -1831,11 +2051,8 @@ export const DashboardLayout = () => {
                     style={{
                       height: `${pillHeight}px`,
                       borderRadius: '30px',
-                      backgroundColor: pillColor,
-                      boxShadow:
-                        theme === 'dark'
-                          ? '0 14px 32px rgba(2, 6, 23, 0.45), inset 0 0 0 1px rgba(255,255,255,0.05)'
-                          : '0 14px 34px rgba(42, 49, 64, 0.22), inset 0 0 0 1px rgba(255,255,255,0.06)'
+                      background: `linear-gradient(145deg, color-mix(in srgb, ${activeStrongColor} 58%, #06111f), color-mix(in srgb, ${activeColor} 38%, #071426))`,
+                      boxShadow: `0 14px 34px rgba(${activeAccentTheme.accentRgb},0.28), inset 0 1px 0 rgba(255,255,255,0.10)`
                     }}
                   />
 
@@ -1878,29 +2095,26 @@ export const DashboardLayout = () => {
                                 top: isActive ? `${pillTop - 20}px` : `${pillTop + 6}px`,
                                 height: isActive ? '50px' : '26px',
                                 width: isActive ? '50px' : '26px',
-                                backgroundColor: isActive ? accent : 'transparent',
+                                backgroundColor: isActive ? activeColor : 'transparent',
                                 boxShadow: isActive
-                                  ? `0 6px 18px rgba(${accentRgb}, 0.45)`
+                                  ? `0 7px 20px rgba(${activeAccentTheme.accentRgb},0.36)`
                                   : 'none'
                               }}
                             >
                               <MobileIcon
                                 name={item.icon}
                                 active={false}
-                                accent={isActive ? '#ffffff' : inactiveIcon}
-                                className={isActive ? 'h-6 w-6' : 'h-[22px] w-[22px]'}
+                                accent={isActive ? activeIcon : inactiveIcon}
+                                className={isActive ? 'h-6 w-6' : 'h-6 w-6'}
                               />
-                              {item.to === '/profile' && !isActive ? (
-                                <span
-                                  className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-rose-500"
-                                  style={{ border: `2px solid ${pillColor}` }}
-                                />
-                              ) : null}
                             </span>
 
                             <span
-                              className="pointer-events-none absolute inset-x-0 truncate px-1 text-center text-[9px] font-semibold leading-none transition-colors duration-300"
-                              style={{ top: `${pillTop + 36}px`, color: isActive ? '#ffffff' : inactiveIcon }}
+                              className="mobile-bottom-nav__label pointer-events-none absolute inset-x-0 truncate px-1 text-center text-[11px] font-bold leading-none transition-colors duration-300"
+                              style={{
+                                top: `${pillTop + 35}px`,
+                                color: isActive ? activeIcon : inactiveIcon
+                              }}
                             >
                               {item.label}
                             </span>
@@ -1914,6 +2128,45 @@ export const DashboardLayout = () => {
             );
           })()}
         </div>
+
+      {calendarOpen && (
+        <div
+          className="fixed inset-0 z-[90] flex items-stretch justify-center bg-slate-950/55 backdrop-blur-sm sm:items-center sm:p-4"
+          onClick={() => setCalendarOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden border shadow-[0_30px_80px_rgba(2,6,23,0.5)] sm:h-auto sm:max-h-[92dvh] sm:rounded-3xl"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+            onClick={event => event.stopPropagation()}
+          >
+            <div
+              className="flex shrink-0 items-center justify-between border-b px-5 pb-3.5 pt-[max(0.875rem,env(safe-area-inset-top))] sm:py-3.5"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <div className="flex items-center gap-2.5">
+                <MobileIcon name="calendar" accent={activeAccentTheme.accent} className="h-5 w-5" active={false} />
+                <span className="text-base font-bold text-[color:var(--text)]">ปฏิทิน</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCalendarOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full border text-[color:var(--muted)] transition hover:opacity-80"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                aria-label="ปิด"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <CalendarPage embedded />
+            </div>
+          </div>
+        </div>
+      )}
 
       {logoPreviewOpen && (
         <div
