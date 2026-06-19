@@ -228,7 +228,11 @@ const extractErrorMessage = (error: any, fallback: string) => {
   return fallback;
 };
 
-export const DocumentSummaryPage = () => {
+type DocumentSummaryPageProps = {
+  embedded?: boolean;
+};
+
+export const DocumentSummaryPage = ({ embedded = false }: DocumentSummaryPageProps) => {
   const { error } = useAppAlert();
   const { user } = useAuth();
   const isArchivePage = false;
@@ -1261,7 +1265,7 @@ export const DocumentSummaryPage = () => {
 
   return (
     <div
-      className="doc-summary-page relative min-h-screen overflow-hidden bg-transparent font-sans pb-[7.5rem] md:pb-16"
+      className={`doc-summary-page relative overflow-hidden bg-transparent font-sans ${embedded ? 'pb-0' : 'min-h-screen pb-[7.5rem] md:pb-16'}`}
       style={{ ['--doc-accent-soft' as string]: 'rgba(var(--accent-rgb),0.10)' }}
     >
       {/* Print View */}
@@ -1273,7 +1277,7 @@ export const DocumentSummaryPage = () => {
         </pre>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 pb-4 pt-2 md:p-8 relative z-10 space-y-8 print:hidden">
+      <div className={`max-w-7xl mx-auto relative z-10 space-y-8 print:hidden ${embedded ? 'px-0 pb-0 pt-0' : 'px-4 pb-4 pt-2 md:p-8'}`}>
         <style>{`
           .doc-summary-page::before {
             content: "";
@@ -1392,6 +1396,7 @@ export const DocumentSummaryPage = () => {
         `}</style>
         
         {/* Header */}
+        {!embedded && (
         <header className="doc-summary-header mb-8 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-4">
             <div
@@ -1432,6 +1437,7 @@ export const DocumentSummaryPage = () => {
             <span className="doc-summary-chip">{archiveCountLabel} เก็บถาวร</span>
           </div>
         </header>
+        )}
 
         {/* Section 1: Input & Settings */}
         {!isArchivePage && (

@@ -27,6 +27,7 @@ class SubjectResource extends JsonResource
             'description' => $this->description,
             'color' => $this->color,
             'room' => $this->room,
+            'classroom' => $this->room,
             'target_hours' => $this->target_hours,
             'start_date' => $startDate,
             'start_time' => $startTime,

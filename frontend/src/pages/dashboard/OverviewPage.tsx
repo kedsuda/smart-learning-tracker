@@ -84,6 +84,9 @@ type SubjectSummary = {
   room?: string | null;
   classroom?: string | null;
   study_log_count?: number;
+  start_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
 };
 
 type SemesterChoice = {
@@ -91,6 +94,11 @@ type SemesterChoice = {
   label: string;
   semester?: number | null;
   academic_year?: number | null;
+};
+
+type SemesterCreateForm = {
+  semester: string;
+  academic_year: string;
 };
 
 type SubjectColorOption = {
@@ -152,6 +160,13 @@ const toDisplayDate = (value?: string | null) => {
   const [year, month, day] = iso.split('-');
   const buddhistYear = Number(year) + 543;
   return `${day}/${month}/${String(buddhistYear).padStart(4, '0')}`;
+};
+
+const toDisplayDateGregorian = (value?: string | null) => {
+  const iso = toIsoDate(value);
+  if (!iso) return null;
+  const [year, month, day] = iso.split('-');
+  return `${day}/${month}/${year}`;
 };
 
 const formatSubjectDate = (value?: string | null) => {
@@ -444,6 +459,7 @@ const fetchCalendarEventsFromDatabase = async () => {
   }
   throw lastError ?? new Error('โหลดตารางเรียนไม่สำเร็จ');
 };
+const isDeleteFallbackStatus = (status?: number) => !status || status === 404 || status === 405 || status === 500;
 const normalizeEventTypeValue = (value?: string | null) => {
   const normalized = String(value ?? '').trim().toLowerCase();
   if (!normalized) return null;
@@ -508,7 +524,13 @@ const normalizeTimeInput = (value?: string | null) => {
   if (!value) return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
-  const normalized = trimmed.replace(/\./g, ':');
+  let normalized = trimmed.replace(/\./g, ':');
+  if (normalized.includes('T')) {
+    normalized = normalized.split('T')[1] ?? normalized;
+  } else if (normalized.includes(' ')) {
+    normalized = normalized.split(' ')[1] ?? normalized;
+  }
+  normalized = normalized.split('+')[0] ?? normalized;
   const segments = normalized.split(':');
   if (segments.length < 2) return null;
   const hour = (segments[0] ?? '00').padStart(2, '0');
@@ -520,8 +542,12 @@ const normalizeTimeForInput = (value?: string | null) => {
   if (!value) return '';
   const trimmed = value.trim();
   if (!trimmed) return '';
-  const timeChunk = trimmed.includes('T') ? (trimmed.split('T')[1] ?? '') : trimmed;
-  const withoutOffset = timeChunk.split('+')[0]?.split('-')[0] ?? timeChunk;
+  const timeChunk = trimmed.includes('T')
+    ? (trimmed.split('T')[1] ?? '')
+    : trimmed.includes(' ')
+      ? (trimmed.split(' ')[1] ?? '')
+      : trimmed;
+  const withoutOffset = timeChunk.split('+')[0] ?? timeChunk;
   const segments = withoutOffset.replace(/\./g, ':').split(':');
   if (segments.length < 2) return '';
   const hour = (segments[0] ?? '00').padStart(2, '0');
@@ -559,9 +585,13 @@ export const OverviewPage = () => {
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [subjectRefreshKey, setSubjectRefreshKey] = useState(0);
   const [semesterChoices, setSemesterChoices] = useState<SemesterChoice[]>([]);
+  const [isCreatingSemester, setIsCreatingSemester] = useState(false);
+  const [newSemester, setNewSemester] = useState<SemesterCreateForm>({ semester: '1', academic_year: '' });
+  const [createSemesterError, setCreateSemesterError] = useState<string>('');
   const [subjectEditorOpen, setSubjectEditorOpen] = useState(false);
   const [subjectEditorSaving, setSubjectEditorSaving] = useState(false);
   const [subjectCatalogOpen, setSubjectCatalogOpen] = useState(false);
+  const [deletingSubjectId, setDeletingSubjectId] = useState<number | null>(null);
   const [subjectEditorError, setSubjectEditorError] = useState<string | null>(null);
   const [activeDay, setActiveDay] = useState('จันทร์');
   const [pendingDeleteDialog, setPendingDeleteDialog] = useState<{
@@ -592,6 +622,7 @@ export const OverviewPage = () => {
   const dropPreviewRef = useRef<{ day: string; index: number } | null>(null);
   const dropCommittingRef = useRef(false);
   const daySectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const subjectEditorDatePickerRef = useRef<HTMLInputElement | null>(null);
 
   const hideKey = useMemo(() => getHideScheduleKey(user?.id), [user?.id]);
   const semesterOptions = useSemesterOptions();
@@ -796,6 +827,66 @@ export const OverviewPage = () => {
     daySectionRefs.current[day]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const createSemester = async () => {
+    const semester = Number(newSemester.semester);
+    const academicYear = Number(newSemester.academic_year);
+
+    if (!Number.isFinite(semester) || semester < 1 || semester > 3) {
+      setCreateSemesterError('กรุณาเลือกเทอม 1, 2 หรือ 3');
+      return;
+    }
+
+    if (!Number.isFinite(academicYear) || academicYear < 2000 || academicYear > 3000) {
+      setCreateSemesterError('กรุณากรอกปีการศึกษา 4 หลัก');
+      return;
+    }
+
+    setCreateSemesterError('');
+    setIsCreatingSemester(true);
+
+    try {
+      const response = await api.post('/semesters', {
+        semester,
+        academic_year: academicYear,
+      });
+
+      const created = response.data?.data && typeof response.data.data === 'object'
+        ? response.data.data
+        : response.data;
+
+      const nextChoice: SemesterChoice | null = created?.semester_id
+        ? {
+            semester_id: Number(created.semester_id),
+            semester: toNumberOrNull(created.semester),
+            academic_year: toNumberOrNull(created.academic_year),
+            label: `เทอม ${toNumberOrNull(created.semester) ?? '-'} / ${toNumberOrNull(created.academic_year) ?? '-'}`,
+          }
+        : null;
+
+      setSemesterChoices(prev => {
+        const merged = nextChoice
+          ? [...prev.filter(item => item.semester_id !== nextChoice.semester_id), nextChoice]
+          : prev;
+        return merged.sort((a, b) => {
+          if ((a.academic_year ?? 0) !== (b.academic_year ?? 0)) {
+            return (a.academic_year ?? 0) - (b.academic_year ?? 0);
+          }
+          return (a.semester ?? 0) - (b.semester ?? 0);
+        });
+      });
+
+      if (nextChoice?.semester_id) {
+        setSubjectEditor(prev => ({ ...prev, semesterId: String(nextChoice.semester_id) }));
+      }
+
+      success('เพิ่มภาคเรียนเรียบร้อยแล้ว');
+    } catch (err: any) {
+      setCreateSemesterError(err?.response?.data?.message || err?.message || 'เพิ่มภาคเรียนไม่สำเร็จ');
+    } finally {
+      setIsCreatingSemester(false);
+    }
+  };
+
   useEffect(() => {
     if (!user?.id) return;
 
@@ -953,6 +1044,14 @@ export const OverviewPage = () => {
   }, [displayWeekOrder]);
 
   useEffect(() => {
+    const currentAcademicYear = new Date().getFullYear() + 543;
+    setNewSemester(prev => ({
+      ...prev,
+      academic_year: prev.academic_year || String(currentAcademicYear),
+    }));
+  }, []);
+
+  useEffect(() => {
     if (scheduleHidden || displayWeekOrder.length === 0) return;
 
     const observer = new IntersectionObserver(
@@ -1094,6 +1193,23 @@ export const OverviewPage = () => {
     setSubjectEditorOpen(true);
   };
 
+  const openSubjectEditorForSubject = (subject: SubjectSummary) => {
+    setSubjectEditorError(null);
+    setSubjectEditor({
+      subjectId: subject.id,
+      sourceSubjectId: '',
+      name: subject.name ?? '',
+      semesterId: subject.semester_id ? String(subject.semester_id) : '',
+      date: toIsoDate(subject.start_date ?? null) ?? format(new Date(), 'yyyy-MM-dd'),
+      startTime: normalizeTimeForInput(subject.start_time ?? null),
+      endTime: normalizeTimeForInput(subject.end_time ?? null),
+      room: subject.room ?? subject.classroom ?? '',
+      allDay: false,
+      color: subject.color ?? subjectColorOptions[0].value,
+    });
+    setSubjectEditorOpen(true);
+  };
+
   const closeSubjectEditor = () => {
     setSubjectEditorOpen(false);
     setSubjectEditorError(null);
@@ -1106,6 +1222,94 @@ export const OverviewPage = () => {
   const closePendingDeleteDialog = () => {
     if (pendingDeleteBusy) return;
     setPendingDeleteDialog(null);
+  };
+
+  const deleteSubjectById = async (id: number) => {
+    const clients = apiFallbackClients;
+    let lastError: any = null;
+
+    for (const client of clients) {
+      try {
+        const form = new URLSearchParams();
+        form.set('subject_id', String(id));
+        form.set('id', String(id));
+        await client.post('/subjects/delete', form, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+        return;
+      } catch (err: any) {
+        lastError = err;
+        const status = err?.response?.status;
+        if (!isDeleteFallbackStatus(status)) throw err;
+      }
+
+      try {
+        const form = new URLSearchParams();
+        form.set('subject_id', String(id));
+        await client.post(`/subjects/${id}/delete`, form, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+        return;
+      } catch (err: any) {
+        lastError = err;
+        const status = err?.response?.status;
+        if (!isDeleteFallbackStatus(status)) throw err;
+      }
+
+      try {
+        const form = new URLSearchParams();
+        form.set('_method', 'DELETE');
+        form.set('subject_id', String(id));
+        await client.post(`/subjects/${id}`, form, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-HTTP-Method-Override': 'DELETE' },
+        });
+        return;
+      } catch (err: any) {
+        lastError = err;
+        const status = err?.response?.status;
+        if (!isDeleteFallbackStatus(status)) throw err;
+      }
+
+      try {
+        await client.delete(`/subjects/${id}`);
+        return;
+      } catch (err: any) {
+        lastError = err;
+        const status = err?.response?.status;
+        if (!isDeleteFallbackStatus(status)) throw err;
+      }
+    }
+
+    throw lastError ?? new Error('ลบวิชาไม่สำเร็จ');
+  };
+
+  const requestDeleteSubject = (subject: SubjectSummary) => {
+    setPendingDeleteDialog({
+      title: 'ยืนยันการลบ',
+      message: `ต้องการลบวิชา "${subject.name}" ใช่หรือไม่?`,
+      confirmLabel: 'ลบวิชา',
+      action: async () => {
+        setDeletingSubjectId(subject.id);
+        try {
+          await deleteSubjectById(subject.id);
+          setSubjects(prev => prev.filter(item => item.id !== subject.id));
+          setSchedule(prev =>
+            Object.fromEntries(
+              Object.entries(prev)
+                .map(([day, slots]) => [day, slots.filter(slot => slot.subjectId !== subject.id)] as const)
+                .filter(([, slots]) => slots.length > 0)
+            )
+          );
+          emitSubjectsUpdated();
+          success('ลบรายวิชาเรียบร้อยแล้ว');
+        } catch (err: any) {
+          error(err?.response?.data?.message || err?.message || 'ลบวิชาไม่สำเร็จ');
+          return;
+        } finally {
+          setDeletingSubjectId(null);
+        }
+      },
+    });
   };
 
   const runPendingDeleteAction = async () => {
@@ -1617,6 +1821,25 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
       return;
     }
 
+    const startDate = subjectEditor.date?.trim() || null;
+    const startTime = subjectEditor.startTime?.trim() ? normalizeTimeInput(subjectEditor.startTime) : null;
+    const endTime = subjectEditor.endTime?.trim() ? normalizeTimeInput(subjectEditor.endTime) : null;
+
+    if ((startTime || endTime) && !startDate) {
+      setSubjectEditorError('กรุณาเลือกวันที่เริ่มเรียน');
+      return;
+    }
+
+    if (endTime && !startTime) {
+      setSubjectEditorError('กรุณาระบุเวลาเริ่ม');
+      return;
+    }
+
+    if (startTime && endTime && parseTimeToMinutes(endTime) <= parseTimeToMinutes(startTime)) {
+      setSubjectEditorError('เวลาเลิกต้องช้ากว่าเวลาเริ่ม');
+      return;
+    }
+
     setSubjectEditorSaving(true);
     setSubjectEditorError(null);
 
@@ -1625,17 +1848,23 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
         const editingSubjectId = subjectEditor.subjectId;
         const semesterId = Number(subjectEditor.semesterId);
         const semesterChoice = semesterChoices.find(choice => choice.semester_id === semesterId);
-        await updateSubjectSchedule(editingSubjectId, name, null, null, null, null, subjectEditor.color, semesterId);
+        const room = subjectEditor.room.trim() || null;
+        await updateSubjectSchedule(editingSubjectId, name, startDate, startTime, endTime, room, subjectEditor.color, semesterId);
 
         setSubjects(prev => prev.map(subject => (
           subject.id === editingSubjectId
             ? {
                 ...subject,
                 name,
+                room,
+                classroom: room,
                 color: subjectEditor.color,
                 semester_id: semesterId,
                 semester: semesterChoice?.semester ?? subject.semester ?? null,
                 academic_year: semesterChoice?.academic_year ?? subject.academic_year ?? null,
+                start_date: startDate,
+                start_time: startTime,
+                end_time: endTime,
               }
             : subject
         )));
@@ -1654,10 +1883,16 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
         });
       } else {
         const semesterId = Number(subjectEditor.semesterId);
+        const room = subjectEditor.room.trim() || null;
         const response = await api.post('/subjects', {
           semester_id: semesterId,
           name,
           description: null,
+          start_date: startDate,
+          start_time: startTime,
+          end_time: endTime,
+          room,
+          classroom: room,
           color: subjectEditor.color,
           target_hours: null,
         });
@@ -1672,10 +1907,15 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
             {
               id: createdId,
               name,
+              room,
+              classroom: room,
               semester_id: semesterId,
               semester: createdSemester,
               academic_year: createdAcademicYear,
               color: subjectEditor.color,
+              start_date: startDate,
+              start_time: startTime,
+              end_time: endTime,
             },
             ...prev
           ]);
@@ -2081,7 +2321,7 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
               <div>
                 <p className="text-xs uppercase tracking-[0.35em] text-emerald-600">Subjects</p>
                 <h3 className="mt-2 text-lg font-semibold text-slate-900">รายวิชาทั้งหมด</h3>
-                <p className="mt-1 text-sm text-slate-500">ดูรายวิชาในเทอมที่เลือกแบบกริด 2 x 2</p>
+               
               </div>
               <button
                 type="button"
@@ -2117,6 +2357,44 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
                       <p>พร้อมนำไปจัดลงตารางเรียน</p>
                       <p>{subject.study_log_count ?? 0} บันทึกการเรียน</p>
                     </div>
+                    <div className="mt-4 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={event => {
+                          event.stopPropagation();
+                          openSubjectEditorForSubject(subject);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                        title="แก้ไขวิชา"
+                        aria-label={`แก้ไขวิชา ${subject.name}`}
+                      >
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                        <span>แก้ไข</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={event => {
+                          event.stopPropagation();
+                          requestDeleteSubject(subject);
+                        }}
+                        disabled={deletingSubjectId === subject.id || pendingDeleteBusy}
+                        className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 disabled:opacity-50"
+                        title="ลบวิชา"
+                        aria-label={`ลบวิชา ${subject.name}`}
+                      >
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M3 6h18" />
+                          <path d="M8 6V4h8v2" />
+                          <path d="m19 6-1 14H6L5 6" />
+                          <path d="M10 11v6" />
+                          <path d="M14 11v6" />
+                        </svg>
+                        <span>{deletingSubjectId === subject.id && pendingDeleteBusy ? 'กำลังลบ...' : 'ลบวิชา'}</span>
+                      </button>
+                    </div>
                   </article>
                 ))}
               </div>
@@ -2126,16 +2404,17 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
       )}
 
       {subjectEditorOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/55 px-4 py-2 backdrop-blur-sm sm:py-4">
+          <div className="flex min-h-full items-start justify-center pt-1 sm:pt-2">
           <div
-            className="surface w-full max-w-lg overflow-hidden rounded-[1.75rem] border p-0 shadow-[0_28px_80px_rgba(15,23,42,0.30)]"
+            className="surface my-2 w-full max-w-lg overflow-hidden rounded-[1.75rem] border p-0 shadow-[0_28px_80px_rgba(15,23,42,0.30)]"
             style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
           >
             <div
               className="h-1.5 w-full"
               style={{ background: 'linear-gradient(90deg, var(--accent), rgba(var(--accent-rgb),0.42))' }}
             />
-            <div className="p-5 sm:p-6">
+            <div className="max-h-[calc(100dvh-4.5rem)] overflow-y-auto p-5 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <span
@@ -2147,17 +2426,6 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
                 <h3 className="mt-3 text-xl font-bold text-[color:var(--text)]">{subjectEditor.subjectId ? 'แก้ไขวิชา' : 'เพิ่มวิชา'}</h3>
                 <p className="mt-1 text-sm leading-6 text-[color:var(--muted)]">สร้างรายวิชาเพื่อใช้จัดตารางเรียนและบันทึกการเรียน</p>
               </div>
-              <button
-                type="button"
-                onClick={closeSubjectEditor}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition hover:opacity-70"
-                style={{ borderColor: 'var(--border)', background: 'var(--surface-2)', color: 'var(--text)' }}
-                aria-label="ปิด"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="m6 6 12 12M18 6 6 18" strokeLinecap="round" />
-                </svg>
-              </button>
             </div>
 
             {subjectEditorError && (
@@ -2166,7 +2434,7 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
               </div>
             )}
 
-            <div className="mt-5 space-y-4 text-sm">
+            <div className="mt-5 space-y-4 pb-28 text-sm sm:pb-20">
               <div>
                 <label className="mb-2 block text-xs font-semibold text-[color:var(--muted)]">ภาคเรียน</label>
                 <select
@@ -2186,6 +2454,58 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
                     </option>
                   ))}
                 </select>
+                <div
+                  className="mt-3 rounded-xl border p-3"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">เพิ่มเทอมเอง</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-[120px,minmax(0,1fr),120px]">
+                    <select
+                      value={newSemester.semester}
+                      onChange={event => setNewSemester(prev => ({ ...prev, semester: event.target.value }))}
+                      className="w-full rounded-xl border px-3 py-3 text-[color:var(--text)] shadow-sm outline-none transition focus:ring-2"
+                      style={{
+                        borderColor: 'var(--border)',
+                        background: 'var(--surface)',
+                        ['--tw-ring-color' as string]: 'rgba(var(--accent-rgb),0.24)',
+                      }}
+                    >
+                      <option value="1">เทอม 1</option>
+                      <option value="2">เทอม 2</option>
+                      <option value="3">เทอม 3</option>
+                    </select>
+                    <input
+                      value={newSemester.academic_year}
+                      onChange={event => setNewSemester(prev => ({ ...prev, academic_year: event.target.value }))}
+                      inputMode="numeric"
+                      placeholder="ปีการศึกษา เช่น 2568"
+                      className="w-full rounded-xl border px-3 py-3 text-[color:var(--text)] shadow-sm outline-none transition placeholder:text-[color:var(--muted)] focus:ring-2"
+                      style={{
+                        borderColor: 'var(--border)',
+                        background: 'var(--surface)',
+                        ['--tw-ring-color' as string]: 'rgba(var(--accent-rgb),0.24)',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={createSemester}
+                      disabled={isCreatingSemester}
+                      className="rounded-xl border px-4 py-3 text-sm font-semibold transition hover:opacity-90 disabled:opacity-60"
+                      style={{
+                        borderColor: 'rgba(var(--accent-rgb),0.18)',
+                        background: 'rgba(var(--accent-rgb),0.10)',
+                        color: 'var(--accent)',
+                      }}
+                    >
+                      {isCreatingSemester ? 'กำลังเพิ่ม...' : 'เพิ่มเทอม'}
+                    </button>
+                  </div>
+                  {createSemesterError ? (
+                    <p className="mt-2 text-xs text-rose-500">{createSemesterError}</p>
+                  ) : (
+                    <p className="mt-2 text-xs text-[color:var(--muted)]">สร้างแล้วระบบจะเลือกเทอมให้อัตโนมัติ</p>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -2202,6 +2522,102 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
                     ['--tw-ring-color' as string]: 'rgba(var(--accent-rgb),0.24)',
                   }}
                 />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-semibold text-[color:var(--muted)]">ห้องเรียน</label>
+                <input
+                  type="text"
+                  value={subjectEditor.room}
+                  onChange={event => setSubjectEditor(prev => ({ ...prev, room: event.target.value }))}
+                  placeholder="เช่น SCB 2401"
+                  className="w-full rounded-xl border px-3.5 py-3 text-[color:var(--text)] shadow-sm outline-none transition placeholder:text-[color:var(--muted)] focus:ring-2"
+                  style={{
+                    borderColor: 'var(--border)',
+                    background: 'var(--surface-2)',
+                    ['--tw-ring-color' as string]: 'rgba(var(--accent-rgb),0.24)',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-semibold text-[color:var(--muted)]">วันที่เริ่มเรียน</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="dd/mm/yyyy"
+                    value={toDisplayDateGregorian(subjectEditor.date) ?? subjectEditor.date}
+                    onChange={event => setSubjectEditor(prev => ({ ...prev, date: event.target.value }))}
+                    className="w-full rounded-xl border px-3.5 py-3 pr-11 text-[color:var(--text)] shadow-sm outline-none transition placeholder:text-[color:var(--muted)] focus:ring-2"
+                    style={{
+                      borderColor: 'var(--border)',
+                      background: 'var(--surface-2)',
+                      ['--tw-ring-color' as string]: 'rgba(var(--accent-rgb),0.24)',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const picker = subjectEditorDatePickerRef.current;
+                      if (!picker) return;
+                      if (typeof (picker as any).showPicker === 'function') (picker as any).showPicker();
+                      else picker.click();
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--muted)] hover:text-[color:var(--text)]"
+                    aria-label="เลือกวันที่เริ่มเรียน"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
+                      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
+                      <path d="M8 3v4M16 3v4M3 9h18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                  <input
+                    ref={subjectEditorDatePickerRef}
+                    type="date"
+                    value={toIsoDate(subjectEditor.date) ?? ''}
+                    onChange={event => {
+                      const nextIso = event.target.value;
+                      setSubjectEditor(prev => ({ ...prev, date: nextIso || prev.date }));
+                    }}
+                    className="absolute inset-0 opacity-0 pointer-events-none"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-2 block text-xs font-semibold text-[color:var(--muted)]">เวลาเริ่ม</label>
+                  <input
+                    type="time"
+                    step={300}
+                    value={subjectEditor.startTime}
+                    onChange={event => setSubjectEditor(prev => ({ ...prev, startTime: event.target.value }))}
+                    className="w-full rounded-xl border px-3.5 py-3 text-[color:var(--text)] shadow-sm outline-none transition focus:ring-2"
+                    style={{
+                      borderColor: 'var(--border)',
+                      background: 'var(--surface-2)',
+                      ['--tw-ring-color' as string]: 'rgba(var(--accent-rgb),0.24)',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-xs font-semibold text-[color:var(--muted)]">เวลาเลิก</label>
+                  <input
+                    type="time"
+                    step={300}
+                    value={subjectEditor.endTime}
+                    onChange={event => setSubjectEditor(prev => ({ ...prev, endTime: event.target.value }))}
+                    className="w-full rounded-xl border px-3.5 py-3 text-[color:var(--text)] shadow-sm outline-none transition focus:ring-2"
+                    style={{
+                      borderColor: 'var(--border)',
+                      background: 'var(--surface-2)',
+                      ['--tw-ring-color' as string]: 'rgba(var(--accent-rgb),0.24)',
+                    }}
+                  />
+                </div>
               </div>
 
               <div>
@@ -2241,7 +2657,15 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
               </div>
             </div>
 
-            <div className="mt-6 flex items-center justify-end gap-2 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
+            <div
+              className="sticky bottom-0 -mx-5 mt-6 flex items-center justify-end gap-2 border-t px-5 py-4 sm:-mx-6 sm:px-6"
+              style={{
+                borderColor: 'var(--border)',
+                background: 'color-mix(in srgb, var(--surface) 94%, transparent)',
+                backdropFilter: 'blur(10px)',
+                paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))',
+              }}
+            >
               <button
                 type="button"
                 onClick={closeSubjectEditor}
@@ -2265,6 +2689,7 @@ const deleteCalendarEventWithFallback = async (eventId: number) => {
               </button>
             </div>
             </div>
+          </div>
           </div>
         </div>
       )}

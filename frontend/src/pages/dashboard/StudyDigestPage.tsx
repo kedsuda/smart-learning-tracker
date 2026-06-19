@@ -2,6 +2,7 @@ import { BarChart3, BookOpen, Bot, Calendar, FileText, Filter, PieChart, Sparkle
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
+import { DocumentSummaryPage } from './DocumentSummaryPage';
 
 type SubjectOption = {
   id: number;
@@ -454,6 +455,31 @@ export const StudyDigestPage = () => {
                 ยังไม่มีบันทึกในช่วงเวลานี้
               </div>
             )}
+          </div>
+        </section>
+
+        <section className="rounded-[1.75rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-[0_10px_26px_rgba(15,23,42,0.10)] backdrop-blur">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-[color:var(--text)]">สรุปจากไฟล์และเก็บถาวร</h3>
+              <p className="text-sm text-[color:var(--muted)]">
+                อัปโหลดเอกสารหรือไฟล์เสียงเพื่อสรุปด้วย AI แล้วบันทึกสรุปหรือเก็บถาวรได้จากหน้านี้
+              </p>
+            </div>
+            <span
+              className="rounded-full border px-3 py-1 text-[10px] font-bold shadow-sm"
+              style={{
+                borderColor: 'rgba(var(--accent-rgb),0.18)',
+                color: 'var(--accent-ink)',
+                background: 'var(--surface-2)',
+              }}
+            >
+              รองรับ PDF, DOCX, TXT, เสียง
+            </span>
+          </div>
+
+          <div className="mt-5">
+            <DocumentSummaryPage embedded />
           </div>
         </section>
       </div>
